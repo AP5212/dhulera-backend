@@ -1,0 +1,14 @@
+export enum StaticContentStatus {
+  ACTIVE = 'ACTIVE',
+  INACTIVE = 'INACTIVE',
+  DRAFT = 'DRAFT',
+  DELETED = 'DELETED',
+}
+
+export enum StaticContentType {
+  ABOUT_US = 'ABOUT_US',
+  PRIVACY_POLICY = 'PRIVACY_POLICY',
+  TERMS_AND_CONDITIONS = 'TERMS_AND_CONDITIONS',
+  CONTACT_US = 'CONTACT_US',
+  FAQ = 'FAQ',
+}
