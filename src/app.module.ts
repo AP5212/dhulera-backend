@@ -7,6 +7,8 @@ import { AppController } from './app.controller';
 import { UsersModule } from './modules/users/users.module';
 import { PropertiesModule } from './modules/properties/properties.module';
 import { SubscriptionsModule } from './modules/subscriptions/subscriptions.module';
+import { StaticContentModule } from './modules/static-content/static-content.module';
+import { MasterCategoryModule } from './modules/master-category/master-category.module';
 
 @Module({
   imports: [
@@ -21,6 +23,8 @@ import { SubscriptionsModule } from './modules/subscriptions/subscriptions.modul
     UsersModule,
     PropertiesModule,
     SubscriptionsModule,
+    StaticContentModule,
+    MasterCategoryModule,
   ],
   controllers: [AppController],
 })
