@@ -9,6 +9,8 @@ import { PropertiesModule } from './modules/properties/properties.module';
 import { SubscriptionsModule } from './modules/subscriptions/subscriptions.module';
 import { StaticContentModule } from './modules/static-content/static-content.module';
 import { MasterCategoryModule } from './modules/master-category/master-category.module';
+import { LocationModule } from './modules/location/location.module';
+import { RolesModule } from './modules/roles/roles.module';
 
 @Module({
   imports: [
@@ -25,6 +27,8 @@ import { MasterCategoryModule } from './modules/master-category/master-category.
     SubscriptionsModule,
     StaticContentModule,
     MasterCategoryModule,
+    LocationModule,
+    RolesModule,
   ],
   controllers: [AppController],
 })

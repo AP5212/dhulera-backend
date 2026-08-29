@@ -1,6 +1,5 @@
-export enum UserStatus {
+export enum LocationStatus {
   ACTIVE = 'ACTIVE',
   INACTIVE = 'INACTIVE',
-  BLOCKED = 'BLOCKED',
   DELETED = 'DELETED',
 }

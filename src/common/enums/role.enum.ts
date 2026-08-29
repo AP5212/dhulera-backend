@@ -1,6 +1,5 @@
-export enum UserStatus {
+export enum RoleStatus {
   ACTIVE = 'ACTIVE',
   INACTIVE = 'INACTIVE',
-  BLOCKED = 'BLOCKED',
   DELETED = 'DELETED',
 }
