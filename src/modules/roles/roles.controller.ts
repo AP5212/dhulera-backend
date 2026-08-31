@@ -1,4 +1,14 @@
-import { Body, Controller, Get, Param, Post, UseFilters } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Get,
+  Param,
+  Post,
+  Req,
+  UnauthorizedException,
+  UseFilters,
+} from '@nestjs/common';
+import type { AuthenticatedRequest } from '../users/middleware/jwt-auth.middleware';
 import { CreateRoleDto, DeleteRoleDto, UpdateRoleDto } from './dto/role.dto';
 import { RoleExceptionFilter } from './filters/role-exception.filter';
 import { RolesService } from './roles.service';
@@ -9,10 +19,19 @@ export class RolesController {
   constructor(private readonly rolesService: RolesService) {}
 
   @Post('create')
-  async create(@Body() dto: CreateRoleDto) {
+  async create(
+    @Body() dto: CreateRoleDto,
+    @Req() request: AuthenticatedRequest,
+  ) {
+    const createdBy = request.user?.user_id;
+    if (!createdBy)
+      throw new UnauthorizedException(
+        'Authenticated user information is missing.',
+      );
+
     return this.response(
       'Role created successfully.',
-      await this.rolesService.create(dto),
+      await this.rolesService.create(dto, createdBy),
     );
   }
 

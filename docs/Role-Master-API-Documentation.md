@@ -2,7 +2,7 @@
 
 Base URL: `http://localhost:3000`
 
-All endpoints return JSON. Authentication is not currently required by this module. Send `Content-Type: application/json` for `POST` requests.
+All endpoints return JSON. `POST /roles/create` requires an access token in the `Authorization` header. Send `Content-Type: application/json` for `POST` requests.
 
 ## Allowed values and field rules
 
@@ -44,12 +44,13 @@ Request body:
   "roleCode": "ADMIN",
   "roleName": "Administrator",
   "description": "Full administrative access.",
-  "status": "ACTIVE",
-  "createdBy": "1"
+  "status": "ACTIVE"
 }
 ```
 
-Required fields: `roleCode`, `roleName`. The remaining fields are optional.
+Required fields: `roleCode`, `roleName`. The remaining fields are optional. `createdBy` is taken from the authenticated token's `user_id` claim; it must not be sent in the request body.
+
+Send either `Authorization: Bearer <access-token>` or `Authorization: <access-token>`.
 
 Success response (`201`):
 

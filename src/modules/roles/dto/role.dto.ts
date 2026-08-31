@@ -5,7 +5,6 @@ export class CreateRoleDto {
   roleName!: string;
   description?: string | null;
   status?: RoleStatus;
-  createdBy?: string;
 }
 
 export class UpdateRoleDto {

@@ -16,7 +16,7 @@ export class RolesService {
     @InjectRepository(Role) private readonly roleRepository: Repository<Role>,
   ) {}
 
-  async create(dto: CreateRoleDto): Promise<Role> {
+  async create(dto: CreateRoleDto, createdBy: string): Promise<Role> {
     const roleCode = this.requireText(dto.roleCode, 'roleCode');
     const roleName = this.requireText(dto.roleName, 'roleName');
     await this.ensureUnique(roleCode, roleName);
@@ -26,7 +26,7 @@ export class RolesService {
         roleName,
         description: this.optionalText(dto.description, 'description'),
         status: this.validateStatus(dto.status),
-        createdBy: this.optionalBigInt(dto.createdBy, 'createdBy'),
+        createdBy: this.requireBigInt(createdBy, 'createdBy'),
       }),
     );
   }

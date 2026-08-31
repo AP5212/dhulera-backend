@@ -3,6 +3,7 @@ import { ConfigModule, ConfigService } from '@nestjs/config';
 import { JwtModule } from '@nestjs/jwt';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { User } from './entities/user.entity';
+import { JwtAuthMiddleware } from './middleware/jwt-auth.middleware';
 import { UsersController } from './users.controller';
 import { UsersService } from './users.service';
 
@@ -19,7 +20,7 @@ import { UsersService } from './users.service';
     }),
   ],
   controllers: [UsersController],
-  providers: [UsersService],
-  exports: [TypeOrmModule, UsersService],
+  providers: [UsersService, JwtAuthMiddleware],
+  exports: [TypeOrmModule, JwtModule, UsersService, JwtAuthMiddleware],
 })
 export class UsersModule {}
