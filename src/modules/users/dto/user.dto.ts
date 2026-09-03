@@ -11,7 +11,6 @@ export class RegisterUserDto {
   districtId?: string | null;
   subDistrictId?: string | null;
   location?: string | null;
-  createdBy?: string;
 }
 
 export class LoginUserDto {

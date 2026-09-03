@@ -14,10 +14,13 @@ export class StaticContentService {
     private readonly staticContentRepository: Repository<StaticContent>,
   ) {}
 
-  async create(createStaticContentDto: CreateStaticContentDto): Promise<StaticContent> {
+  async create(
+    createStaticContentDto: CreateStaticContentDto,
+    authenticatedUserId: string,
+  ): Promise<StaticContent> {
     const contentType = this.validateContentType(createStaticContentDto.contentType);
     const content = this.requireText(createStaticContentDto.content, 'content');
-    const addedBy = this.requireBigInt(createStaticContentDto.addedBy, 'addedBy');
+    const addedBy = this.requireBigInt(authenticatedUserId, 'addedBy');
     const status = this.validateStatus(createStaticContentDto.status);
 
     const existingContent = await this.staticContentRepository.findOneBy({ contentType });

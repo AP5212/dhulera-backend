@@ -1,4 +1,14 @@
-import { Body, Controller, Get, Param, Post, UseFilters } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Get,
+  Param,
+  Post,
+  Req,
+  UnauthorizedException,
+  UseFilters,
+} from '@nestjs/common';
+import type { AuthenticatedRequest } from '../users/middleware/jwt-auth.middleware';
 import { CreateStaticContentDto } from './dto/create-static-content.dto';
 import { DeleteStaticContentDto } from './dto/delete-static-content.dto';
 import { UpdateStaticContentDto } from './dto/update-static-content.dto';
@@ -12,8 +22,14 @@ export class StaticContentController {
   constructor(private readonly staticContentService: StaticContentService) {}
 
   @Post('create')
-  async create(@Body() createStaticContentDto: CreateStaticContentDto): Promise<ApiResponse> {
-    const data = await this.staticContentService.create(createStaticContentDto);
+  async create(
+    @Body() createStaticContentDto: CreateStaticContentDto,
+    @Req() request: AuthenticatedRequest,
+  ): Promise<ApiResponse> {
+    const data = await this.staticContentService.create(
+      createStaticContentDto,
+      this.getAuthenticatedUserId(request),
+    );
     return this.successResponse('Static content created successfully.', data);
   }
 
@@ -45,6 +61,13 @@ export class StaticContentController {
 
   private successResponse(message: string, data: StaticContent): ApiResponse {
     return { status: true, message, data };
+  }
+
+  private getAuthenticatedUserId(request: AuthenticatedRequest): string {
+    const userId = request.user?.user_id;
+    if (!userId)
+      throw new UnauthorizedException('Authenticated user information is missing.');
+    return userId;
   }
 }
 

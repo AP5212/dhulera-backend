@@ -44,7 +44,10 @@ export class UsersService {
     private readonly configService: ConfigService,
   ) {}
 
-  async register(dto: RegisterUserDto): Promise<UserResponse> {
+  async register(
+    dto: RegisterUserDto,
+    authenticatedUserId: string,
+  ): Promise<UserResponse> {
     const user = await this.userRepository.save(
       this.userRepository.create({
         username: this.requireText(dto.username, 'username'),
@@ -62,7 +65,7 @@ export class UsersService {
         subDistrictId: this.optionalBigInt(dto.subDistrictId, 'subDistrictId'),
         location: this.optionalText(dto.location, 'location'),
         status: UserStatus.ACTIVE,
-        createdBy: this.optionalBigInt(dto.createdBy, 'createdBy'),
+        createdBy: this.requireBigInt(authenticatedUserId, 'createdBy'),
       }),
     );
     return this.toResponse(user);

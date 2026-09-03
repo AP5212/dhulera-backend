@@ -3,6 +3,5 @@ import { StaticContentStatus, StaticContentType } from '../../../common/enums/st
 export class CreateStaticContentDto {
   contentType!: StaticContentType;
   content!: string;
-  addedBy!: string;
   status?: StaticContentStatus;
 }

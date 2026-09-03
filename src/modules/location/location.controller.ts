@@ -5,8 +5,11 @@ import {
   Param,
   Post,
   Query,
+  Req,
+  UnauthorizedException,
   UseFilters,
 } from '@nestjs/common';
+import type { AuthenticatedRequest } from '../users/middleware/jwt-auth.middleware';
 import {
   CreateDistrictDto,
   CreateStateDto,
@@ -24,9 +27,12 @@ import { LocationService } from './location.service';
 export class LocationController {
   constructor(private readonly locationService: LocationService) {}
 
-  @Post('states/create') createState(@Body() dto: CreateStateDto) {
+  @Post('states/create') createState(
+    @Body() dto: CreateStateDto,
+    @Req() request: AuthenticatedRequest,
+  ) {
     return this.locationService
-      .createState(dto)
+      .createState(dto, this.getAuthenticatedUserId(request))
       .then((data) => this.response('State created successfully.', data));
   }
   @Post('states/update/:id') updateState(
@@ -56,9 +62,12 @@ export class LocationController {
       .then((data) => this.response('State retrieved successfully.', data));
   }
 
-  @Post('districts/create') createDistrict(@Body() dto: CreateDistrictDto) {
+  @Post('districts/create') createDistrict(
+    @Body() dto: CreateDistrictDto,
+    @Req() request: AuthenticatedRequest,
+  ) {
     return this.locationService
-      .createDistrict(dto)
+      .createDistrict(dto, this.getAuthenticatedUserId(request))
       .then((data) => this.response('District created successfully.', data));
   }
   @Post('districts/update/:id') updateDistrict(
@@ -90,9 +99,10 @@ export class LocationController {
 
   @Post('sub-districts/create') createSubDistrict(
     @Body() dto: CreateSubDistrictDto,
+    @Req() request: AuthenticatedRequest,
   ) {
     return this.locationService
-      .createSubDistrict(dto)
+      .createSubDistrict(dto, this.getAuthenticatedUserId(request))
       .then((data) =>
         this.response('Sub-district created successfully.', data),
       );
@@ -136,5 +146,12 @@ export class LocationController {
 
   private response(message: string, data: unknown) {
     return { status: true, message, data };
+  }
+
+  private getAuthenticatedUserId(request: AuthenticatedRequest): string {
+    const userId = request.user?.user_id;
+    if (!userId)
+      throw new UnauthorizedException('Authenticated user information is missing.');
+    return userId;
   }
 }

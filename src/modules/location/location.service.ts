@@ -31,7 +31,7 @@ export class LocationService {
     private readonly subDistrictRepository: Repository<SubDistrict>,
   ) {}
 
-  async createState(dto: CreateStateDto): Promise<State> {
+  async createState(dto: CreateStateDto, authenticatedUserId: string): Promise<State> {
     const stateCode = this.requireText(dto.stateCode, 'stateCode');
     const stateName = this.requireText(dto.stateName, 'stateName');
     await this.ensureStateUnique(stateCode, stateName);
@@ -39,7 +39,7 @@ export class LocationService {
       this.stateRepository.create({
         stateCode,
         stateName,
-        createdBy: this.optionalBigInt(dto.createdBy, 'createdBy'),
+        createdBy: this.requireBigInt(authenticatedUserId, 'createdBy'),
         status: this.validateStatus(dto.status),
       }),
     );
@@ -77,7 +77,10 @@ export class LocationService {
     return this.stateRepository.find({ order: { stateName: 'ASC' } });
   }
 
-  async createDistrict(dto: CreateDistrictDto): Promise<District> {
+  async createDistrict(
+    dto: CreateDistrictDto,
+    authenticatedUserId: string,
+  ): Promise<District> {
     const stateId = await this.requireActiveState(dto.stateId);
     const districtCode = this.requireText(dto.districtCode, 'districtCode');
     await this.ensureDistrictCodeUnique(stateId, districtCode);
@@ -86,7 +89,7 @@ export class LocationService {
         stateId,
         districtCode,
         districtName: this.requireText(dto.districtName, 'districtName'),
-        createdBy: this.optionalBigInt(dto.createdBy, 'createdBy'),
+        createdBy: this.requireBigInt(authenticatedUserId, 'createdBy'),
         status: this.validateStatus(dto.status),
       }),
     );
@@ -137,7 +140,10 @@ export class LocationService {
     });
   }
 
-  async createSubDistrict(dto: CreateSubDistrictDto): Promise<SubDistrict> {
+  async createSubDistrict(
+    dto: CreateSubDistrictDto,
+    authenticatedUserId: string,
+  ): Promise<SubDistrict> {
     const districtId = await this.requireActiveDistrict(dto.districtId);
     const subDistrictCode = this.requireText(
       dto.subDistrictCode,
@@ -152,7 +158,7 @@ export class LocationService {
           dto.subDistrictName,
           'subDistrictName',
         ),
-        createdBy: this.optionalBigInt(dto.createdBy, 'createdBy'),
+        createdBy: this.requireBigInt(authenticatedUserId, 'createdBy'),
         status: this.validateStatus(dto.status),
       }),
     );

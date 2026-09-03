@@ -1,4 +1,4 @@
-import { Module } from '@nestjs/common';
+import { MiddlewareConsumer, Module, NestModule, RequestMethod } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { JwtModule } from '@nestjs/jwt';
 import { TypeOrmModule } from '@nestjs/typeorm';
@@ -23,4 +23,11 @@ import { UsersService } from './users.service';
   providers: [UsersService, JwtAuthMiddleware],
   exports: [TypeOrmModule, JwtModule, UsersService, JwtAuthMiddleware],
 })
-export class UsersModule {}
+export class UsersModule implements NestModule {
+  configure(consumer: MiddlewareConsumer): void {
+    consumer.apply(JwtAuthMiddleware).forRoutes({
+      path: 'users/register',
+      method: RequestMethod.POST,
+    });
+  }
+}

@@ -3,7 +3,6 @@ import { LocationStatus } from '../../../common/enums/location.enum';
 export class CreateStateDto {
   stateCode!: string;
   stateName!: string;
-  createdBy?: string;
   status?: LocationStatus;
 }
 
@@ -18,7 +17,6 @@ export class CreateDistrictDto {
   stateId!: string;
   districtCode!: string;
   districtName!: string;
-  createdBy?: string;
   status?: LocationStatus;
 }
 
@@ -34,7 +32,6 @@ export class CreateSubDistrictDto {
   districtId!: string;
   subDistrictCode!: string;
   subDistrictName!: string;
-  createdBy?: string;
   status?: LocationStatus;
 }
 
