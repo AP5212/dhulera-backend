@@ -1,4 +1,15 @@
-import { Body, Controller, Get, Param, Post, Query, UseFilters } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Get,
+  Param,
+  Post,
+  Query,
+  Req,
+  UnauthorizedException,
+  UseFilters,
+} from '@nestjs/common';
+import type { AuthenticatedRequest } from '../users/middleware/jwt-auth.middleware';
 import { CreateMasterCategoryDto } from './dto/create-master-category.dto';
 import { DeleteMasterCategoryDto } from './dto/delete-master-category.dto';
 import { UpdateMasterCategoryDto } from './dto/update-master-category.dto';
@@ -12,14 +23,26 @@ export class MasterCategoryController {
   constructor(private readonly masterCategoryService: MasterCategoryService) {}
 
   @Post('create')
-  async create(@Body() createMasterCategoryDto: CreateMasterCategoryDto): Promise<ApiResponse> {
-    const data = await this.masterCategoryService.create(createMasterCategoryDto);
+  async create(
+    @Body() createMasterCategoryDto: CreateMasterCategoryDto,
+    @Req() request: AuthenticatedRequest,
+  ): Promise<ApiResponse> {
+    const data = await this.masterCategoryService.create(
+      createMasterCategoryDto,
+      this.getAuthenticatedUserId(request),
+    );
     return this.successResponse('Master category created successfully.', data);
   }
 
   @Post('sub-category')
-  async createSubCategory(@Body() createMasterCategoryDto: CreateMasterCategoryDto): Promise<ApiResponse> {
-    const data = await this.masterCategoryService.createSubCategory(createMasterCategoryDto);
+  async createSubCategory(
+    @Body() createMasterCategoryDto: CreateMasterCategoryDto,
+    @Req() request: AuthenticatedRequest,
+  ): Promise<ApiResponse> {
+    const data = await this.masterCategoryService.createSubCategory(
+      createMasterCategoryDto,
+      this.getAuthenticatedUserId(request),
+    );
     return this.successResponse('Subcategory created successfully.', data);
   }
 
@@ -55,6 +78,14 @@ export class MasterCategoryController {
 
   private successResponse(message: string, data: MasterCategory): ApiResponse {
     return { status: true, message, data };
+  }
+
+  private getAuthenticatedUserId(request: AuthenticatedRequest): string {
+    const userId = request.user?.user_id;
+    if (!userId) {
+      throw new UnauthorizedException('Authenticated user information is missing.');
+    }
+    return userId;
   }
 }
 

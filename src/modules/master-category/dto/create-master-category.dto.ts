@@ -4,6 +4,5 @@ export class CreateMasterCategoryDto {
   categoryType!: MasterCategoryType;
   categoryName!: string;
   parentId?: string | null;
-  createdBy!: string;
   status?: MasterCategoryStatus;
 }

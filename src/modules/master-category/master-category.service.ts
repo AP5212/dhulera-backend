@@ -14,11 +14,14 @@ export class MasterCategoryService {
     private readonly masterCategoryRepository: Repository<MasterCategory>,
   ) {}
 
-  async create(createMasterCategoryDto: CreateMasterCategoryDto): Promise<MasterCategory> {
+  async create(
+    createMasterCategoryDto: CreateMasterCategoryDto,
+    authenticatedUserId: string,
+  ): Promise<MasterCategory> {
     const categoryType = this.validateCategoryType(createMasterCategoryDto.categoryType);
     const categoryName = this.requireText(createMasterCategoryDto.categoryName, 'categoryName');
     const parentId = await this.validateParentId(createMasterCategoryDto.parentId);
-    const createdBy = this.requireBigInt(createMasterCategoryDto.createdBy, 'createdBy');
+    const createdBy = this.requireBigInt(authenticatedUserId, 'createdBy');
     const status = this.validateStatus(createMasterCategoryDto.status);
 
     await this.ensureCategoryDoesNotExist(categoryType, categoryName, parentId);
@@ -27,11 +30,14 @@ export class MasterCategoryService {
     );
   }
 
-  async createSubCategory(createMasterCategoryDto: CreateMasterCategoryDto): Promise<MasterCategory> {
+  async createSubCategory(
+    createMasterCategoryDto: CreateMasterCategoryDto,
+    authenticatedUserId: string,
+  ): Promise<MasterCategory> {
     if (createMasterCategoryDto.parentId === undefined || createMasterCategoryDto.parentId === null) {
       throw new BadRequestException('parentId is required when creating a subcategory.');
     }
-    return this.create(createMasterCategoryDto);
+    return this.create(createMasterCategoryDto, authenticatedUserId);
   }
 
   async update(id: string, updateMasterCategoryDto: UpdateMasterCategoryDto): Promise<MasterCategory> {
