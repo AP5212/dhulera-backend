@@ -2,7 +2,9 @@
 
 Base URL: `http://localhost:3000`
 
-All endpoints return JSON. The Users controller does not currently apply an authentication guard. Send `Content-Type: application/json` with every `POST` request.
+All endpoints return JSON. Send `Content-Type: application/json` with every `POST` request. `POST /users/register` requires an access token; login remains public so a token can be obtained.
+
+For the protected endpoint, send either `Authorization: Bearer <access-token>` or `Authorization: <access-token>`.
 
 ## Validation and behavior
 
@@ -10,7 +12,8 @@ All endpoints return JSON. The Users controller does not currently apply an auth
 - Login requires non-blank `username` and `password`.
 - `email` is optional; when provided, it must be a valid email address.
 - `mobileNumber` is optional; when provided, it must contain digits only. Send it as a string so a leading zero is retained.
-- ID fields (`id`, `roleId`, `parentId`, `stateId`, `districtId`, `subDistrictId`, `createdBy`, `updatedBy`) must be positive integers. Use strings for IDs because database IDs are bigints.
+- ID fields (`id`, `roleId`, `parentId`, `stateId`, `districtId`, `subDistrictId`, and `updatedBy`) must be positive integers. Use strings for IDs because database IDs are bigints.
+- During registration, `createdBy` is taken from the authenticated token's `user_id` claim; do not send it in the request body.
 - Optional text fields may be omitted or sent as `null`; supplied text cannot be blank.
 - A registered user always starts with `status: "ACTIVE"`; the request cannot set the status.
 - Usernames, email addresses, and mobile numbers are unique at the database level.
@@ -57,14 +60,15 @@ Request body:
   "stateId": "1",
   "districtId": "1",
   "subDistrictId": "1",
-  "location": "Dholera",
-  "createdBy": "1"
+  "location": "Dholera"
 }
 ```
 
 Required: `username`, `firstName`, `password`, `roleId`.
 
-Optional: `lastName`, `email`, `mobileNumber`, `parentId`, `stateId`, `districtId`, `subDistrictId`, `location`, `createdBy`.
+Optional: `lastName`, `email`, `mobileNumber`, `parentId`, `stateId`, `districtId`, `subDistrictId`, `location`.
+
+Send an access token in the `Authorization` header. The new record's `createdBy` value is always populated from the token's `user_id` claim.
 
 Success response (`201`):
 
@@ -161,6 +165,6 @@ Success response message: `User deleted successfully.`
 ## Common errors
 
 - `400 Bad Request`: a required text field is blank, email format is invalid, mobile number contains non-digits, an ID is invalid, or `PASSWORD_ENCRYPTION_KEY` is not configured.
-- `401 Unauthorized`: the username/password is invalid, or the user's status is not `ACTIVE`.
+- `401 Unauthorized`: the register token is missing, invalid, or expired; the username/password is invalid; or the user's status is not `ACTIVE`.
 - `404 Not Found`: the user does not exist or has been soft-deleted.
 - `500 Internal Server Error`: an unexpected server or database error, including a database uniqueness violation.

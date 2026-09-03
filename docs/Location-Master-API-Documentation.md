@@ -2,12 +2,15 @@
 
 Base URL: `http://localhost:3000`
 
-All endpoints return JSON. Authentication is not currently required by this module. Send `Content-Type: application/json` with every `POST` request.
+All endpoints return JSON. Send `Content-Type: application/json` with every `POST` request. The three create endpoints require an access token; read, update, and delete endpoints currently do not.
+
+For create requests, send either `Authorization: Bearer <access-token>` or `Authorization: <access-token>`.
 
 ## Conventions and validation
 
 - `status` accepts `ACTIVE`, `INACTIVE`, or `DELETED`; it defaults to `ACTIVE` when a record is created.
-- IDs (`id`, `stateId`, `districtId`, `createdBy`, and `updatedBy`) must be positive integers. Send IDs as strings to preserve bigint precision.
+- IDs (`id`, `stateId`, `districtId`, and `updatedBy`) must be positive integers. Send IDs as strings to preserve bigint precision.
+- For state, district, and sub-district creation, `createdBy` is set from the authenticated token's `user_id` claim and must not be included in the request body.
 - Codes and names must be non-empty strings; leading and trailing whitespace is removed.
 - A district can be created or moved only under an existing active state. A sub-district can be created or moved only under an existing active district.
 - State codes and names are unique without regard to letter case or surrounding whitespace. District codes are unique within a state, and sub-district codes are unique within a district, using the same comparison.
@@ -45,12 +48,11 @@ All create, update, and delete endpoints return `201`. Read endpoints return `20
 {
   "stateCode": "RJ",
   "stateName": "Rajasthan",
-  "createdBy": "1",
   "status": "ACTIVE"
 }
 ```
 
-Required: `stateCode`, `stateName`. Optional: `createdBy`, `status`.
+Required: `stateCode`, `stateName`. Optional: `status`. A valid access token is required; the token's `user_id` is saved as `createdBy`.
 
 ### List or get a state
 
@@ -90,12 +92,11 @@ All request fields are optional. Omitted `stateCode`, `stateName`, and `status` 
   "stateId": "1",
   "districtCode": "JPR",
   "districtName": "Jaipur",
-  "createdBy": "1",
   "status": "ACTIVE"
 }
 ```
 
-Required: `stateId`, `districtCode`, `districtName`. `stateId` must identify an active state. Optional: `createdBy`, `status`.
+Required: `stateId`, `districtCode`, `districtName`. `stateId` must identify an active state. Optional: `status`. A valid access token is required; the token's `user_id` is saved as `createdBy`.
 
 ### List or get a district
 
@@ -137,12 +138,11 @@ All request fields are optional. If supplied, `stateId` must identify an active 
   "districtId": "1",
   "subDistrictCode": "SANG",
   "subDistrictName": "Sanganer",
-  "createdBy": "1",
   "status": "ACTIVE"
 }
 ```
 
-Required: `districtId`, `subDistrictCode`, `subDistrictName`. `districtId` must identify an active district. Optional: `createdBy`, `status`.
+Required: `districtId`, `subDistrictCode`, `subDistrictName`. `districtId` must identify an active district. Optional: `status`. A valid access token is required; the token's `user_id` is saved as `createdBy`.
 
 ### List or get a sub-district
 
@@ -199,6 +199,7 @@ District creation response uses `stateId`, `districtCode`, and `districtName` in
 ## Common errors
 
 - `400 Bad Request`: a required value is blank, an ID is invalid, status is invalid, or a supplied parent state/district is not active.
+- `401 Unauthorized`: a create request does not include a valid, non-expired access token.
 - `404 Not Found`: the requested state, district, or sub-district does not exist.
 - `409 Conflict`: a duplicate state code/name, district code within a state, or sub-district code within a district was requested.
 - `500 Internal Server Error`: an unexpected server or database error.
