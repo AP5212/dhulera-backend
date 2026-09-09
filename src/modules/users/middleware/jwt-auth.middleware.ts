@@ -7,23 +7,21 @@ import { JwtService } from '@nestjs/jwt';
 import { Request, Response, NextFunction } from 'express';
 
 export interface AccessTokenPayload {
-  user_id: string;
-  username: string;
-  first_name: string;
-  last_name: string | null;
-  email_id: string | null;
-  mobile_number: string | null;
-  role_id: string;
-  parent_id: string | null;
-  state_id: string | null;
-  district_id: string | null;
-  sub_district_id: string | null;
-  location: string | null;
-  iat: number;
-  exp: number;
+  sub?: string;
+  user_id?: string;
+  email?: string;
+  iat?: number;
+  exp?: number;
 }
 
-export type AuthenticatedRequest = Request & { user?: AccessTokenPayload };
+export type AuthenticatedRequest = Request & {
+  user?: {
+    id: string;
+    email: string;
+    user_id: string;
+    [key: string]: any;
+  };
+};
 
 @Injectable()
 export class JwtAuthMiddleware implements NestMiddleware {
@@ -37,8 +35,19 @@ export class JwtAuthMiddleware implements NestMiddleware {
     const token = this.extractToken(request.headers.authorization);
 
     try {
-      request.user =
-        await this.jwtService.verifyAsync<AccessTokenPayload>(token);
+      const payload = await this.jwtService.verifyAsync<AccessTokenPayload>(token);
+      const userId = payload.sub || payload.user_id;
+
+      if (!userId) {
+        throw new UnauthorizedException('Invalid token payload.');
+      }
+
+      request.user = {
+        id: userId,
+        user_id: userId,
+        email: payload.email ?? '',
+        ...payload,
+      };
       next();
     } catch {
       throw new UnauthorizedException('Invalid or expired access token.');
@@ -46,13 +55,15 @@ export class JwtAuthMiddleware implements NestMiddleware {
   }
 
   private extractToken(authorization: string | undefined): string {
-    if (!authorization?.trim())
+    if (!authorization?.trim()) {
       throw new UnauthorizedException('Authorization header is required.');
+    }
 
     const parts = authorization.trim().split(/\s+/);
     if (parts.length === 1) return parts[0];
-    if (parts.length === 2 && parts[0].toLowerCase() === 'bearer')
+    if (parts.length === 2 && parts[0].toLowerCase() === 'bearer') {
       return parts[1];
+    }
 
     throw new UnauthorizedException(
       'Authorization header must contain a JWT or Bearer JWT.',

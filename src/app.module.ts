@@ -3,7 +3,9 @@ import { ConfigModule } from '@nestjs/config';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import appConfig from './config/app.config';
 import databaseConfig from './config/database.config';
+import jwtConfig from './config/jwt.config';
 import { AppController } from './app.controller';
+import { AuthModule } from './auth/auth.module';
 import { UsersModule } from './modules/users/users.module';
 import { PropertiesModule } from './modules/properties/properties.module';
 import { SubscriptionsModule } from './modules/subscriptions/subscriptions.module';
@@ -16,12 +18,13 @@ import { RolesModule } from './modules/roles/roles.module';
   imports: [
     ConfigModule.forRoot({
       isGlobal: true,
-      load: [appConfig, databaseConfig],
+      load: [appConfig, databaseConfig, jwtConfig],
       envFilePath: '.env',
     }),
     TypeOrmModule.forRootAsync({
-      useFactory: () => require('./config/database.config').default(),
+      useFactory: databaseConfig,
     }),
+    AuthModule,
     UsersModule,
     PropertiesModule,
     SubscriptionsModule,

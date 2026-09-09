@@ -1,6 +1,6 @@
 # User API Documentation
 
-Base URL: `http://localhost:3000`
+Base URL: `http://localhost:5000`
 
 All endpoints return JSON. Send `Content-Type: application/json` with every `POST` request. `POST /users/register` requires an access token; login remains public so a token can be obtained.
 
