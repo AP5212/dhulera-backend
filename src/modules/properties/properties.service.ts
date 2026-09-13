@@ -3,19 +3,18 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
-import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { ConfigService } from '@nestjs/config';
 import * as fs from 'fs';
 import * as path from 'path';
 import { CreatePropertyDto } from './dto/create-property.dto';
 import { DeletePropertyDto } from './dto/delete-property.dto';
 import { UpdatePropertyDto } from './dto/update-property.dto';
 import { Property } from './entities/property.entity';
+import { PropertiesRepository } from './properties.repository';
 
 export interface PropertyUploadedFiles {
   propertyImage?: Express.Multer.File[];
   propertyBroucher?: Express.Multer.File[];
-  propertyBrochure?: Express.Multer.File[];
 }
 
 @Injectable()
@@ -23,34 +22,37 @@ export class PropertiesService {
   private readonly imagesDir = path.join(process.cwd(), 'assets', 'images');
   private readonly pdfDir = path.join(process.cwd(), 'assets', 'pdf');
 
+  private readonly imageBaseUrl: string;
+
   constructor(
-    @InjectRepository(Property)
-    private readonly propertyRepository: Repository<Property>,
+    private readonly propertiesRepository: PropertiesRepository,
+    private readonly configService: ConfigService,
   ) {
     this.ensureDirectoryExists(this.imagesDir);
     this.ensureDirectoryExists(this.pdfDir);
+    this.imageBaseUrl = this.configService.get<string>('app.imageBaseUrl') ?? 'http://localhost:3000';
   }
+
+  // ─── CREATE ────────────────────────────────────────────────
 
   async create(
     dto: CreatePropertyDto,
     files?: PropertyUploadedFiles,
     createdBy?: string,
   ): Promise<Property> {
+    // 1. Validate & sanitise DTO fields (service responsibility)
     const propertyName = this.requireText(
       dto.propertyName ?? dto.properyName,
       'propertyName',
     );
-
     const propertyMinPrice = this.parseOptionalNumber(
       dto.propertyMinPrice ?? dto.properytMinPrice,
       'propertyMinPrice',
     );
-
     const propertyMaxPrice = this.parseOptionalNumber(
       dto.propertyMaxPrice,
       'propertyMaxPrice',
     );
-
     const propertyAddress = this.optionalText(dto.propertyAddress);
     const propertyLattitude = this.optionalText(
       dto.propertyLattitude ?? dto.propertyLatitude,
@@ -63,23 +65,24 @@ export class PropertiesService {
     const propertySIR = this.optionalText(dto.propertySIR);
     const propertyListingType = this.optionalText(dto.propertyListingType);
 
-    // Handle Image file or string url
-    let propertyImagePath = this.optionalText(dto.propertyImage);
-    const imageFile = files?.propertyImage?.[0];
-    if (imageFile) {
-      propertyImagePath = this.saveUploadedFile(imageFile, this.imagesDir, 'images');
-    }
+    // 2. Handle file uploads in parallel → get back the asset URLs (service responsibility)
+    const [propertyImageUrl, propertyBroucherUrl] = await Promise.all([
+      this.resolveFileUrl(
+        files?.propertyImage?.[0],
+        dto.propertyImage,
+        this.imagesDir,
+        'images',
+      ),
+      this.resolveFileUrl(
+        files?.propertyBroucher?.[0] ?? files?.propertyBroucher?.[0],
+        dto.propertyBroucher ?? dto.propertyBroucher,
+        this.pdfDir,
+        'pdf',
+      ),
+    ]);
 
-    // Handle Brochure PDF file or string url
-    let propertyBroucherPath = this.optionalText(
-      dto.propertyBroucher ?? dto.propertyBrochure,
-    );
-    const brochureFile = files?.propertyBroucher?.[0] ?? files?.propertyBrochure?.[0];
-    if (brochureFile) {
-      propertyBroucherPath = this.saveUploadedFile(brochureFile, this.pdfDir, 'pdf');
-    }
-
-    const newProperty = this.propertyRepository.create({
+    // 3. Build entity & persist (repository responsibility)
+    const entity = this.propertiesRepository.createEntity({
       propertyName,
       propertyMinPrice,
       propertyMaxPrice,
@@ -89,26 +92,64 @@ export class PropertiesService {
       propertyStatus,
       propertyDescription,
       propertyArea,
-      propertyImage: propertyImagePath,
+      propertyImage: propertyImageUrl,
       propertyTP,
       propertySIR,
       propertyListingType,
-      propertyBroucher: propertyBroucherPath,
+      propertyBroucher: propertyBroucherUrl,
       createdBy: createdBy ?? null,
     });
 
-    return this.propertyRepository.save(newProperty);
+    return this.propertiesRepository.save(entity);
   }
 
-  async findAll(): Promise<Property[]> {
-    return this.propertyRepository.find({
+  // ─── READ ──────────────────────────────────────────────────
+
+  async findAll(
+    currentPage = 1,
+    itemsPerPage = 10,
+  ): Promise<{
+    data: Property[];
+    totalItems: number;
+    totalPages: number;
+    currentPage: number;
+    itemsPerPage: number;
+  }> {
+    const skip = (currentPage - 1) * itemsPerPage;
+
+    const [properties, totalItems] = await this.propertiesRepository.findAndCount({
       order: { createdAt: 'DESC' },
+      skip,
+      take: itemsPerPage,
     });
+
+    const data = properties.map((property) => this.attachBaseUrl(property));
+
+    return {
+      data,
+      totalItems,
+      totalPages: Math.ceil(totalItems / itemsPerPage),
+      currentPage,
+      itemsPerPage,
+    };
   }
 
   async findOne(id: string): Promise<Property> {
-    return this.findExisting(id);
+    const property = await this.findExisting(id);
+    return this.attachBaseUrl(property);
   }
+
+  private attachBaseUrl(property: Property): Property {
+    if (property.propertyImage && property.propertyImage.startsWith('/')) {
+      property.propertyImage = `${this.imageBaseUrl}${property.propertyImage}`;
+    }
+    if (property.propertyBroucher && property.propertyBroucher.startsWith('/')) {
+      property.propertyBroucher = `${this.imageBaseUrl}${property.propertyBroucher}`;
+    }
+    return property;
+  }
+
+  // ─── UPDATE ────────────────────────────────────────────────
 
   async update(
     id: string,
@@ -117,6 +158,7 @@ export class PropertiesService {
   ): Promise<Property> {
     const property = await this.findExisting(id);
 
+    // Validate & patch each field only when the caller sent it
     const propertyName = dto.propertyName ?? dto.properyName;
     if (propertyName !== undefined) {
       property.propertyName = this.requireText(propertyName, 'propertyName');
@@ -148,7 +190,8 @@ export class PropertiesService {
     }
 
     if (dto.propertyStatus !== undefined) {
-      property.propertyStatus = this.optionalText(dto.propertyStatus) ?? property.propertyStatus;
+      property.propertyStatus =
+        this.optionalText(dto.propertyStatus) ?? property.propertyStatus;
     }
 
     if (dto.propertyDescription !== undefined) {
@@ -171,31 +214,38 @@ export class PropertiesService {
       property.propertyListingType = this.optionalText(dto.propertyListingType);
     }
 
-    if (dto.propertyImage !== undefined) {
-      property.propertyImage = this.optionalText(dto.propertyImage);
+    // Handle file uploads → resolve URLs, then assign to entity
+    const [imageUrl, brochureUrl] = await Promise.all([
+      this.resolveFileUrl(
+        files?.propertyImage?.[0],
+        dto.propertyImage,
+        this.imagesDir,
+        'images',
+      ),
+      this.resolveFileUrl(
+        files?.propertyBroucher?.[0],
+        dto.propertyBroucher,
+        this.pdfDir,
+        'pdf',
+      ),
+    ]);
+
+    if (imageUrl !== null) {
+      property.propertyImage = imageUrl;
     }
 
-    const imageFile = files?.propertyImage?.[0];
-    if (imageFile) {
-      property.propertyImage = this.saveUploadedFile(imageFile, this.imagesDir, 'images');
-    }
-
-    const brochureField = dto.propertyBroucher ?? dto.propertyBrochure;
-    if (brochureField !== undefined) {
-      property.propertyBroucher = this.optionalText(brochureField);
-    }
-
-    const brochureFile = files?.propertyBroucher?.[0] ?? files?.propertyBrochure?.[0];
-    if (brochureFile) {
-      property.propertyBroucher = this.saveUploadedFile(brochureFile, this.pdfDir, 'pdf');
+    if (brochureUrl !== null) {
+      property.propertyBroucher = brochureUrl;
     }
 
     if (dto.updatedBy !== undefined) {
       property.updatedBy = dto.updatedBy;
     }
 
-    return this.propertyRepository.save(property);
+    return this.propertiesRepository.save(property);
   }
+
+  // ─── DELETE (soft) ─────────────────────────────────────────
 
   async remove(id: string, dto?: DeletePropertyDto): Promise<Property> {
     const property = await this.findExisting(id);
@@ -203,23 +253,51 @@ export class PropertiesService {
       property.updatedBy = dto.updatedBy;
     }
     property.propertyStatus = 'DELETED';
-    return this.propertyRepository.save(property);
+    return this.propertiesRepository.save(property);
   }
 
+  // ─── Private helpers ──────────────────────────────────────
+
+  /**
+   * Finds a property by id or throws.
+   * Validation + lookup are service concerns; the raw query is delegated to the repository.
+   */
   private async findExisting(id: string): Promise<Property> {
     if (!id || !/^\d+$/.test(id)) {
       throw new BadRequestException('Invalid property id.');
     }
-    const property = await this.propertyRepository.findOneBy({ id });
+    const property = await this.propertiesRepository.findById(id);
     if (!property) {
       throw new NotFoundException(`Property with id '${id}' was not found.`);
     }
     return property;
   }
 
+  /**
+   * Resolves the final asset URL for a field that can come from either
+   * an uploaded file or a string value in the DTO.
+   *
+   * Priority: uploaded file > DTO string > null
+   */
+  private async resolveFileUrl(
+    file: Express.Multer.File | undefined,
+    dtoValue: unknown,
+    targetDir: string,
+    folderName: string,
+  ): Promise<string | null> {
+    if (file) {
+      return this.saveUploadedFile(file, targetDir, folderName);
+    }
+    return this.optionalText(dtoValue);
+  }
+
+  // ─── Validation utilities ─────────────────────────────────
+
   private requireText(value: unknown, fieldName: string): string {
     if (typeof value !== 'string' || !value.trim()) {
-      throw new BadRequestException(`${fieldName} is required and must be a non-empty string.`);
+      throw new BadRequestException(
+        `${fieldName} is required and must be a non-empty string.`,
+      );
     }
     return value.trim();
   }
@@ -232,7 +310,10 @@ export class PropertiesService {
     return str.length > 0 ? str : null;
   }
 
-  private parseOptionalNumber(value: unknown, fieldName: string): number | null {
+  private parseOptionalNumber(
+    value: unknown,
+    fieldName: string,
+  ): number | null {
     if (value === undefined || value === null || value === '') {
       return null;
     }
@@ -242,6 +323,8 @@ export class PropertiesService {
     }
     return num;
   }
+
+  // ─── File-system utilities ────────────────────────────────
 
   private ensureDirectoryExists(dirPath: string): void {
     if (!fs.existsSync(dirPath)) {
@@ -256,9 +339,10 @@ export class PropertiesService {
   ): string {
     this.ensureDirectoryExists(targetDir);
 
-    // If multer already saved to disk, move or use it; if buffer, write to disk
     const ext = path.extname(file.originalname) || '';
-    const baseName = path.basename(file.originalname, ext).replace(/[^a-zA-Z0-9_-]/g, '_');
+    const baseName = path
+      .basename(file.originalname, ext)
+      .replace(/[^a-zA-Z0-9_-]/g, '_');
     const uniqueName = `${baseName}_${Date.now()}_${Math.floor(Math.random() * 10000)}${ext}`;
     const destinationPath = path.join(targetDir, uniqueName);
 

@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { DeepPartial, Repository } from 'typeorm';
+import { DeepPartial, FindManyOptions, Repository } from 'typeorm';
 import { Property } from './entities/property.entity';
 import { PropertyImage } from './entities/propertyImage.entity';
 
@@ -25,6 +25,10 @@ export class PropertiesRepository {
 
   async findAll(): Promise<Property[]> {
     return this.propertyRepo.find({ order: { createdAt: 'DESC' } });
+  }
+
+  async findAndCount(options?: FindManyOptions<Property>): Promise<[Property[], number]> {
+    return this.propertyRepo.findAndCount(options);
   }
 
   async findById(id: string): Promise<Property | null> {

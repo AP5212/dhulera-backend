@@ -4,6 +4,7 @@ import {
   Get,
   Param,
   Post,
+  Query,
   Req,
   UploadedFiles,
   UseFilters,
@@ -13,6 +14,7 @@ import { FileFieldsInterceptor } from '@nestjs/platform-express';
 import type { AuthenticatedRequest } from '../users/middleware/jwt-auth.middleware';
 import { CreatePropertyDto } from './dto/create-property.dto';
 import { DeletePropertyDto } from './dto/delete-property.dto';
+import { PaginationQueryDto } from './dto/pagination-query.dto';
 import { UpdatePropertyDto } from './dto/update-property.dto';
 import { PropertyExceptionFilter } from './filters/property-exception.filter';
 import { PropertiesService } from './properties.service';
@@ -28,16 +30,15 @@ export class PropertiesController {
     FileFieldsInterceptor([
       { name: 'propertyImage', maxCount: 1 },
       { name: 'propertyBroucher', maxCount: 1 },
-      { name: 'propertyBrochure', maxCount: 1 },
     ]),
   )
   async create(
-    @Body() dto: CreatePropertyDto,
+    @Body() body: CreatePropertyDto,
     @UploadedFiles() files: PropertyUploadedFiles,
-    @Req() request: AuthenticatedRequest,
+    @Req() request,
   ) {
     const createdBy = request?.user?.user_id;
-    const property = await this.propertiesService.create(dto, files, createdBy);
+    const property = await this.propertiesService.create(body, files, createdBy);
     return this.response('Property created successfully.', property);
   }
 
@@ -46,7 +47,6 @@ export class PropertiesController {
     FileFieldsInterceptor([
       { name: 'propertyImage', maxCount: 1 },
       { name: 'propertyBroucher', maxCount: 1 },
-      { name: 'propertyBrochure', maxCount: 1 },
     ]),
   )
   async createDirect(
@@ -64,7 +64,6 @@ export class PropertiesController {
     FileFieldsInterceptor([
       { name: 'propertyImage', maxCount: 1 },
       { name: 'propertyBroucher', maxCount: 1 },
-      { name: 'propertyBrochure', maxCount: 1 },
     ]),
   )
   async update(
@@ -83,9 +82,11 @@ export class PropertiesController {
   }
 
   @Get()
-  async findAll() {
-    const properties = await this.propertiesService.findAll();
-    return this.response('Properties retrieved successfully.', properties);
+  async findAll(@Query() query: PaginationQueryDto) {
+    const currentPage = Math.max(parseInt(query.currentPage ?? '1', 10) || 1, 1);
+    const itemsPerPage = Math.max(parseInt(query.itemsPerPage ?? '10', 10) || 10, 1);
+    const result = await this.propertiesService.findAll(currentPage, itemsPerPage);
+    return { status: true, message: 'Properties retrieved successfully.', ...result };
   }
 
   @Get(':id')

@@ -4,6 +4,6 @@ import { Controller, Get } from '@nestjs/common';
 export class AppController {
   @Get()
   getStatus(): { message: string } {
-    return { message: 'TAG API is running' };
+    return { message: 'Dholera API is running' };
   }
 }
