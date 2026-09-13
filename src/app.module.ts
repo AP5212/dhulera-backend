@@ -5,7 +5,7 @@ import appConfig from './config/app.config';
 import databaseConfig from './config/database.config';
 import jwtConfig from './config/jwt.config';
 import { AppController } from './app.controller';
-import { AuthModule } from './auth/auth.module';
+import { AuthModule } from './modules/auth/auth.module';
 import { UsersModule } from './modules/users/users.module';
 import { PropertiesModule } from './modules/properties/properties.module';
 import { SubscriptionsModule } from './modules/subscriptions/subscriptions.module';
@@ -35,4 +35,4 @@ import { RolesModule } from './modules/roles/roles.module';
   ],
   controllers: [AppController],
 })
-export class AppModule {}
+export class AppModule { }

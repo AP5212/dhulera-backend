@@ -28,6 +28,6 @@ import { UsersService } from './users.service';
   ],
   controllers: [UsersController],
   providers: [UsersService, JwtAuthMiddleware],
-  exports: [TypeOrmModule, UsersService, JwtAuthMiddleware],
+  exports: [TypeOrmModule, JwtModule, UsersService, JwtAuthMiddleware],
 })
 export class UsersModule {}
