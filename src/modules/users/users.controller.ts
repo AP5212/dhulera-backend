@@ -1,16 +1,14 @@
 import {
   Body,
   Controller,
+  Delete,
   Get,
   Param,
-  Post,
-  Req,
-  UnauthorizedException,
+  Patch,
   UseFilters,
 } from '@nestjs/common';
-import { DeleteUserDto, LoginUserDto, RegisterUserDto } from './dto/user.dto';
+import { UpdateUserDto } from './dto/user.dto';
 import { UserExceptionFilter } from './filters/user-exception.filter';
-import type { AuthenticatedRequest } from './middleware/jwt-auth.middleware';
 import { UsersService } from './users.service';
 
 @Controller('users')
@@ -18,54 +16,31 @@ import { UsersService } from './users.service';
 export class UsersController {
   constructor(private readonly usersService: UsersService) {}
 
-  @Post('register')
-  async register(@Body() dto: RegisterUserDto, @Req() request: AuthenticatedRequest) {
-    return this.response(
-      'User registered successfully.',
-      await this.usersService.register(dto, this.getAuthenticatedUserId(request)),
-    );
-  }
-
-  @Post('login')
-  async login(@Body() dto: LoginUserDto) {
-    return this.response(
-      'Login successful.',
-      await this.usersService.login(dto),
-    );
-  }
-
   @Get()
   async findAll() {
-    return this.response(
-      'Users retrieved successfully.',
-      await this.usersService.findAll(),
-    );
+    const users = await this.usersService.findAll();
+    return this.response('Users retrieved successfully.', users);
   }
 
   @Get(':id')
   async findOne(@Param('id') id: string) {
-    return this.response(
-      'User retrieved successfully.',
-      await this.usersService.findOne(id),
-    );
+    const user = await this.usersService.findOneOrFail(id);
+    return this.response('User retrieved successfully.', user);
   }
 
-  @Post('delete/:id')
-  async remove(@Param('id') id: string, @Body() dto: DeleteUserDto) {
-    return this.response(
-      'User deleted successfully.',
-      await this.usersService.remove(id, dto),
-    );
+  @Patch(':id')
+  async update(@Param('id') id: string, @Body() dto: UpdateUserDto) {
+    const user = await this.usersService.update(id, dto);
+    return this.response('User updated successfully.', user);
+  }
+
+  @Delete(':id')
+  async remove(@Param('id') id: string) {
+    await this.usersService.remove(id);
+    return this.response('User deleted successfully.', null);
   }
 
   private response(message: string, data: unknown) {
     return { status: true, message, data };
-  }
-
-  private getAuthenticatedUserId(request: AuthenticatedRequest): string {
-    const userId = request.user?.user_id;
-    if (!userId)
-      throw new UnauthorizedException('Authenticated user information is missing.');
-    return userId;
   }
 }

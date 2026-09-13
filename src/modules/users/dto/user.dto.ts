@@ -1,23 +1,41 @@
-export class RegisterUserDto {
-  username!: string;
-  firstName!: string;
-  lastName?: string | null;
-  email?: string | null;
+import { IsEmail, IsNotEmpty, IsOptional, IsString } from 'class-validator';
+
+export class CreateUserDto {
+  @IsString()
+  @IsNotEmpty()
+  name!: string;
+
+  @IsEmail()
+  @IsNotEmpty()
+  email!: string;
+
+  @IsString()
+  @IsOptional()
+  password?: string | null;
+
+  @IsString()
+  @IsOptional()
   mobileNumber?: string | null;
-  password!: string;
-  roleId!: string;
-  parentId?: string | null;
-  stateId?: string | null;
-  districtId?: string | null;
-  subDistrictId?: string | null;
-  location?: string | null;
+
+  @IsString()
+  @IsOptional()
+  mobileCountryCode?: string | null;
 }
 
-export class LoginUserDto {
-  username!: string;
-  password!: string;
-}
+export class UpdateUserDto {
+  @IsString()
+  @IsOptional()
+  name?: string;
 
-export class DeleteUserDto {
-  updatedBy?: string;
+  @IsEmail()
+  @IsOptional()
+  email?: string;
+
+  @IsString()
+  @IsOptional()
+  mobileNumber?: string;
+
+  @IsString()
+  @IsOptional()
+  mobileCountryCode?: string;
 }
