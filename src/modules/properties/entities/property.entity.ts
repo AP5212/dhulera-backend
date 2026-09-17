@@ -2,9 +2,11 @@ import {
   Column,
   CreateDateColumn,
   Entity,
+  OneToMany,
   PrimaryGeneratedColumn,
   UpdateDateColumn,
 } from 'typeorm';
+import { PropertyImage } from './propertyImage.entity';
 
 @Entity('dhulera_properties')
 export class Property {
@@ -80,6 +82,10 @@ export class Property {
   @Column({ name: "is_active", type: "boolean", default: true })
   isActive!: boolean;
 
-  @Column({ name: "status", type: "enum", enum: ['ACTIVE', 'INACTIVE', "DELETED"], default: 'ACTIVE' })
-  status!: "ACTIVE" | "INACTIVE" | "DELETED";
+  @Column({ name: 'status', type: 'enum', enum: ['ACTIVE', 'INACTIVE', 'DELETED'], default: 'ACTIVE' })
+  status!: 'ACTIVE' | 'INACTIVE' | 'DELETED';
+
+  // Relation: one property has many images in dhulera_properties_images
+  @OneToMany(() => PropertyImage, (image) => image.property, { cascade: false, eager: false })
+  images!: PropertyImage[];
 }

@@ -13,6 +13,9 @@ import { StaticContentModule } from './modules/static-content/static-content.mod
 import { MasterCategoryModule } from './modules/master-category/master-category.module';
 import { LocationModule } from './modules/location/location.module';
 import { RolesModule } from './modules/roles/roles.module';
+import { PropertyListingTypeModule } from './modules/property-listing-type/property-listing-type.module';
+import { PropertyTpModule } from './modules/property_tp/property_tp.module';
+import { AdminModule } from './modules/admin/admin.module';
 
 @Module({
   imports: [
@@ -32,6 +35,9 @@ import { RolesModule } from './modules/roles/roles.module';
     MasterCategoryModule,
     LocationModule,
     RolesModule,
+    PropertyListingTypeModule,
+    PropertyTpModule,
+    AdminModule,
   ],
   controllers: [AppController],
 })

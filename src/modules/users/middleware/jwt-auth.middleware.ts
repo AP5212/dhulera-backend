@@ -34,6 +34,12 @@ export class JwtAuthMiddleware implements NestMiddleware {
   ): Promise<void> {
     const token = this.extractToken(request.headers.authorization);
 
+    // No Authorization header — treat as anonymous request and continue.
+    // Routes that truly require auth should validate request.user in the controller/service.
+    if (!token) {
+      return next();
+    }
+
     try {
       const payload = await this.jwtService.verifyAsync<AccessTokenPayload>(token);
       const userId = payload.sub || payload.user_id;
@@ -49,14 +55,20 @@ export class JwtAuthMiddleware implements NestMiddleware {
         ...payload,
       };
       next();
-    } catch {
+    } catch (err) {
+      if (err instanceof UnauthorizedException) throw err;
       throw new UnauthorizedException('Invalid or expired access token.');
     }
   }
 
-  private extractToken(authorization: string | undefined): string {
+  /**
+   * Extracts the raw JWT string from the Authorization header.
+   * Returns null when no header is present (anonymous request).
+   * Throws when the header format is malformed.
+   */
+  private extractToken(authorization: string | undefined): string | null {
     if (!authorization?.trim()) {
-      throw new UnauthorizedException('Authorization header is required.');
+      return null; // no header → anonymous, let route handler decide
     }
 
     const parts = authorization.trim().split(/\s+/);
@@ -66,7 +78,8 @@ export class JwtAuthMiddleware implements NestMiddleware {
     }
 
     throw new UnauthorizedException(
-      'Authorization header must contain a JWT or Bearer JWT.',
+      'Authorization header must be: Bearer <token>',
     );
   }
 }
+

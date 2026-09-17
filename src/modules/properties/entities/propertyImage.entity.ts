@@ -1,34 +1,52 @@
 import {
-    Column,
-    CreateDateColumn,
-    Entity,
-    PrimaryGeneratedColumn,
-    UpdateDateColumn,
+  Column,
+  CreateDateColumn,
+  Entity,
+  JoinColumn,
+  ManyToOne,
+  PrimaryGeneratedColumn,
+  UpdateDateColumn,
 } from 'typeorm';
+import { Property } from './property.entity';
 
 @Entity('dhulera_properties_images')
 export class PropertyImage {
-    @PrimaryGeneratedColumn({ type: 'bigint' })
-    id!: string;
+  @PrimaryGeneratedColumn({ type: 'bigint' })
+  id!: string;
 
-    @Column({ name: 'propertyImage', type: 'varchar', length: 255 })
-    propertyImage!: string;
+  @Column({ name: 'property_id', type: 'bigint', nullable: true })
+  propertyId!: string | null;
 
-    @Column({ name: 'created_by', type: 'bigint', nullable: true })
-    createdBy!: string | null;
+  @ManyToOne(() => Property, (property) => property.images, {
+    onDelete: 'CASCADE',
+    nullable: true,
+  })
+  @JoinColumn({ name: 'property_id' })
+  property!: Property | null;
 
-    @CreateDateColumn({ name: 'created_at', type: 'timestamp' })
-    createdAt!: Date;
+  @Column({ name: 'image_url', type: 'varchar', length: 500 })
+  imageUrl!: string;
 
-    @Column({ name: 'updated_by', type: 'bigint', nullable: true })
-    updatedBy!: string | null;
+  @Column({ name: 'created_by', type: 'bigint', nullable: true })
+  createdBy!: string | null;
 
-    @UpdateDateColumn({ name: 'updated_at', type: 'timestamp', nullable: true })
-    updatedAt!: Date | null;
+  @CreateDateColumn({ name: 'created_at', type: 'timestamp' })
+  createdAt!: Date;
 
-    @Column({ name: "is_active", type: "boolean", default: true })
-    isActive!: boolean;
+  @Column({ name: 'updated_by', type: 'bigint', nullable: true })
+  updatedBy!: string | null;
 
-    @Column({ name: "status", type: "enum", enum: ['ACTIVE', 'INACTIVE', "DELETED"], default: 'ACTIVE' })
-    status!: "ACTIVE" | "INACTIVE" | "DELETED";
+  @UpdateDateColumn({ name: 'updated_at', type: 'timestamp', nullable: true })
+  updatedAt!: Date | null;
+
+  @Column({ name: 'is_active', type: 'boolean', default: true })
+  isActive!: boolean;
+
+  @Column({
+    name: 'status',
+    type: 'enum',
+    enum: ['ACTIVE', 'INACTIVE', 'DELETED'],
+    default: 'ACTIVE',
+  })
+  status!: 'ACTIVE' | 'INACTIVE' | 'DELETED';
 }

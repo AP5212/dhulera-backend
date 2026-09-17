@@ -20,58 +20,77 @@ import { PropertyExceptionFilter } from './filters/property-exception.filter';
 import { PropertiesService } from './properties.service';
 import type { PropertyUploadedFiles } from './properties.service';
 
-@Controller('properties') //@Controller('properties') means every route in this class is prefixed with /properties.
+@Controller('properties')
 @UseFilters(PropertyExceptionFilter)
 export class PropertiesController {
   constructor(private readonly propertiesService: PropertiesService) { }
 
+  /**
+   * POST /properties/create
+   * Accepts multiple images (up to 10) via form-data field: property_image
+   * createdBy is automatically extracted from the JWT token.
+   */
   @Post('create')
   @UseInterceptors(
     FileFieldsInterceptor([
-      { name: 'propertyImage', maxCount: 1 },
+      { name: 'property_image', maxCount: 10 },
+      { name: 'propertyImage', maxCount: 10 },
+      { name: 'property_broucher', maxCount: 1 },
       { name: 'propertyBroucher', maxCount: 1 },
     ]),
   )
   async create(
     @Body() body: CreatePropertyDto,
-    @UploadedFiles() files: PropertyUploadedFiles,
-    @Req() request,
-  ) {
-    const createdBy = request?.user?.user_id;
-    const property = await this.propertiesService.create(body, files, createdBy);
-    return this.response('Property created successfully.', property);
-  }
-
-  @Post()
-  @UseInterceptors(
-    FileFieldsInterceptor([
-      { name: 'propertyImage', maxCount: 1 },
-      { name: 'propertyBroucher', maxCount: 1 },
-    ]),
-  )
-  async createDirect(
-    @Body() dto: CreatePropertyDto,
-    @UploadedFiles() files: PropertyUploadedFiles,
+    @UploadedFiles() files: any,
     @Req() request: AuthenticatedRequest,
   ) {
     const createdBy = request?.user?.user_id;
-    const property = await this.propertiesService.create(dto, files, createdBy);
+    const normalised: PropertyUploadedFiles = {
+      propertyImage: [
+        ...(files?.property_image ?? []),
+        ...(files?.propertyImage ?? []),
+      ],
+      propertyBroucher: [
+        ...(files?.property_broucher ?? []),
+        ...(files?.propertyBroucher ?? []),
+      ],
+    };
+    const property = await this.propertiesService.create(body, normalised, createdBy);
     return this.response('Property created successfully.', property);
   }
 
+  /**
+   * POST /properties/update/:id
+   * Appends new images and updates property fields.
+   * updatedBy is automatically extracted from the JWT token.
+   */
   @Post('update/:id')
   @UseInterceptors(
     FileFieldsInterceptor([
-      { name: 'propertyImage', maxCount: 1 },
+      { name: 'property_image', maxCount: 10 },
+      { name: 'propertyImage', maxCount: 10 },
+      { name: 'property_broucher', maxCount: 1 },
       { name: 'propertyBroucher', maxCount: 1 },
     ]),
   )
   async update(
     @Param('id') id: string,
     @Body() dto: UpdatePropertyDto,
-    @UploadedFiles() files: PropertyUploadedFiles,
+    @UploadedFiles() files: any,
+    @Req() request: AuthenticatedRequest,
   ) {
-    const property = await this.propertiesService.update(id, dto, files);
+    const updatedBy = request?.user?.user_id;
+    const normalised: PropertyUploadedFiles = {
+      propertyImage: [
+        ...(files?.property_image ?? []),
+        ...(files?.propertyImage ?? []),
+      ],
+      propertyBroucher: [
+        ...(files?.property_broucher ?? []),
+        ...(files?.propertyBroucher ?? []),
+      ],
+    };
+    const property = await this.propertiesService.update(id, dto, normalised, updatedBy);
     return this.response('Property updated successfully.', property);
   }
 

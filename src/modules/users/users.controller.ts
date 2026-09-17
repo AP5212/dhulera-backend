@@ -5,16 +5,27 @@ import {
   Get,
   Param,
   Patch,
+  Post,
   UseFilters,
 } from '@nestjs/common';
-import { UpdateUserDto } from './dto/user.dto';
-import { UserExceptionFilter } from './filters/user-exception.filter';
+import * as bcrypt from 'bcryptjs';
+import { CreateUserDto, UpdateUserDto } from './dto/user.dto';
+// import { UserExceptionFilter } from './filters/user-exception.filter';
 import { UsersService } from './users.service';
 
 @Controller('users')
-@UseFilters(UserExceptionFilter)
+// @UseFilters(UserExceptionFilter)
 export class UsersController {
-  constructor(private readonly usersService: UsersService) {}
+  constructor(private readonly usersService: UsersService) { }
+
+  @Post("create")
+  async create(@Body() createUserDto: CreateUserDto) {
+    if (createUserDto.password) {
+      createUserDto.password = await bcrypt.hash(createUserDto.password, 10);
+    }
+    const data = await this.usersService.create(createUserDto);
+    return this.response('User created successfully.', this.usersService.sanitizeUser(data));
+  }
 
   @Get()
   async findAll() {

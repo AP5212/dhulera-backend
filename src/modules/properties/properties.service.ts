@@ -40,48 +40,28 @@ export class PropertiesService {
     files?: PropertyUploadedFiles,
     createdBy?: string,
   ): Promise<Property> {
-    // 1. Validate & sanitise DTO fields (service responsibility)
-    const propertyName = this.requireText(
-      dto.propertyName ?? dto.properyName,
-      'propertyName',
-    );
-    const propertyMinPrice = this.parseOptionalNumber(
-      dto.propertyMinPrice ?? dto.properytMinPrice,
-      'propertyMinPrice',
-    );
-    const propertyMaxPrice = this.parseOptionalNumber(
-      dto.propertyMaxPrice,
-      'propertyMaxPrice',
-    );
-    const propertyAddress = this.optionalText(dto.propertyAddress);
-    const propertyLattitude = this.optionalText(
-      dto.propertyLattitude ?? dto.propertyLatitude,
-    );
-    const propertyLongitude = this.optionalText(dto.propertyLongitude);
-    const propertyStatus = this.optionalText(dto.propertyStatus) ?? 'AVAILABLE';
-    const propertyDescription = this.optionalText(dto.propertyDescription);
-    const propertyArea = this.optionalText(dto.propertyArea);
-    const propertyTP = this.optionalText(dto.propertyTP);
-    const propertySIR = this.optionalText(dto.propertySIR);
-    const propertyListingType = this.optionalText(dto.propertyListingType);
+    const propertyName = this.requireText(dto.propertyName ?? dto.properyName ?? dto.property_name, 'propertyName');
+    const propertyMinPrice = this.parseOptionalNumber(dto.propertyMinPrice ?? dto.properytMinPrice ?? dto.property_min_price, 'propertyMinPrice');
+    const propertyMaxPrice = this.parseOptionalNumber(dto.propertyMaxPrice ?? dto.property_max_price, 'propertyMaxPrice');
+    const propertyAddress = this.optionalText(dto.propertyAddress ?? dto.property_address);
+    const propertyLattitude = this.optionalText(dto.propertyLattitude ?? dto.propertyLatitude ?? dto.property_lattitude ?? dto.property_latitude);
+    const propertyLongitude = this.optionalText(dto.propertyLongitude ?? dto.property_longitude);
+    const propertyStatus = this.optionalText(dto.propertyStatus ?? dto.property_status) ?? 'AVAILABLE';
+    const propertyDescription = this.optionalText(dto.propertyDescription ?? dto.property_description);
+    const propertyArea = this.optionalText(dto.propertyArea ?? dto.property_area);
+    const propertyTP = this.optionalText(dto.propertyTP ?? dto.property_tp);
+    const propertySIR = this.optionalText(dto.propertySIR ?? dto.property_sir);
+    const propertyListingType = this.optionalText(dto.propertyListingType ?? dto.property_listing_type);
 
-    // 2. Handle file uploads in parallel → get back the asset URLs (service responsibility)
-    const [propertyImageUrl, propertyBroucherUrl] = await Promise.all([
-      this.resolveFileUrl(
-        files?.propertyImage?.[0],
-        dto.propertyImage,
-        this.imagesDir,
-        'images',
-      ),
-      this.resolveFileUrl(
-        files?.propertyBroucher?.[0] ?? files?.propertyBroucher?.[0],
-        dto.propertyBroucher ?? dto.propertyBroucher,
-        this.pdfDir,
-        'pdf',
-      ),
-    ]);
+    // Handle brochure upload (single file)
+    const propertyBroucherUrl = await this.resolveFileUrl(
+      files?.propertyBroucher?.[0],
+      dto.propertyBroucher ?? dto.propertyBrochure ?? dto.property_broucher,
+      this.pdfDir,
+      'pdf',
+    );
 
-    // 3. Build entity & persist (repository responsibility)
+    // Save property first — we need its id as FK for image rows
     const entity = this.propertiesRepository.createEntity({
       propertyName,
       propertyMinPrice,
@@ -92,7 +72,6 @@ export class PropertiesService {
       propertyStatus,
       propertyDescription,
       propertyArea,
-      propertyImage: propertyImageUrl,
       propertyTP,
       propertySIR,
       propertyListingType,
@@ -100,7 +79,23 @@ export class PropertiesService {
       createdBy: createdBy ?? null,
     });
 
-    return this.propertiesRepository.save(entity);
+    const savedProperty = await this.propertiesRepository.save(entity);
+
+    // Save each uploaded image as a separate PropertyImage row
+    const imageFiles = files?.propertyImage ?? [];
+    if (imageFiles.length > 0) {
+      const imageRows = imageFiles.map((file) => ({
+        propertyId: savedProperty.id,
+        imageUrl: this.saveUploadedFile(file, this.imagesDir, 'images'),
+        createdBy: createdBy ?? null,
+      }));
+      const savedImages = await this.propertiesRepository.saveImagesBulk(imageRows);
+      savedProperty.images = savedImages;
+    } else {
+      savedProperty.images = [];
+    }
+
+    return this.attachBaseUrl(savedProperty);
   }
 
   // ─── READ ──────────────────────────────────────────────────
@@ -116,22 +111,13 @@ export class PropertiesService {
     itemsPerPage: number;
   }> {
     const skip = (currentPage - 1) * itemsPerPage;
-
     const [properties, totalItems] = await this.propertiesRepository.findAndCount({
       order: { createdAt: 'DESC' },
       skip,
       take: itemsPerPage,
     });
-
     const data = properties.map((property) => this.attachBaseUrl(property));
-
-    return {
-      data,
-      totalItems,
-      totalPages: Math.ceil(totalItems / itemsPerPage),
-      currentPage,
-      itemsPerPage,
-    };
+    return { data, totalItems, totalPages: Math.ceil(totalItems / itemsPerPage), currentPage, itemsPerPage };
   }
 
   async findOne(id: string): Promise<Property> {
@@ -146,6 +132,14 @@ export class PropertiesService {
     if (property.propertyBroucher && property.propertyBroucher.startsWith('/')) {
       property.propertyBroucher = `${this.imageBaseUrl}${property.propertyBroucher}`;
     }
+    if (Array.isArray(property.images)) {
+      property.images = property.images.map((img) => {
+        if (img.imageUrl && img.imageUrl.startsWith('/')) {
+          img.imageUrl = `${this.imageBaseUrl}${img.imageUrl}`;
+        }
+        return img;
+      });
+    }
     return property;
   }
 
@@ -155,94 +149,85 @@ export class PropertiesService {
     id: string,
     dto: UpdatePropertyDto,
     files?: PropertyUploadedFiles,
+    updatedBy?: string,
   ): Promise<Property> {
     const property = await this.findExisting(id);
 
-    // Validate & patch each field only when the caller sent it
-    const propertyName = dto.propertyName ?? dto.properyName;
+    const propertyName = dto.propertyName ?? dto.properyName ?? dto.property_name;
     if (propertyName !== undefined) {
       property.propertyName = this.requireText(propertyName, 'propertyName');
     }
-
-    const minPrice = dto.propertyMinPrice ?? dto.properytMinPrice;
+    const minPrice = dto.propertyMinPrice ?? dto.properytMinPrice ?? dto.property_min_price;
     if (minPrice !== undefined) {
       property.propertyMinPrice = this.parseOptionalNumber(minPrice, 'propertyMinPrice');
     }
-
-    if (dto.propertyMaxPrice !== undefined) {
-      property.propertyMaxPrice = this.parseOptionalNumber(
-        dto.propertyMaxPrice,
-        'propertyMaxPrice',
-      );
+    const maxPrice = dto.propertyMaxPrice ?? dto.property_max_price;
+    if (maxPrice !== undefined) {
+      property.propertyMaxPrice = this.parseOptionalNumber(maxPrice, 'propertyMaxPrice');
     }
-
-    if (dto.propertyAddress !== undefined) {
-      property.propertyAddress = this.optionalText(dto.propertyAddress);
+    const address = dto.propertyAddress ?? dto.property_address;
+    if (address !== undefined) {
+      property.propertyAddress = this.optionalText(address);
     }
-
-    const latitude = dto.propertyLattitude ?? dto.propertyLatitude;
+    const latitude = dto.propertyLattitude ?? dto.propertyLatitude ?? dto.property_lattitude ?? dto.property_latitude;
     if (latitude !== undefined) {
       property.propertyLattitude = this.optionalText(latitude);
     }
-
-    if (dto.propertyLongitude !== undefined) {
-      property.propertyLongitude = this.optionalText(dto.propertyLongitude);
+    const longitude = dto.propertyLongitude ?? dto.property_longitude;
+    if (longitude !== undefined) {
+      property.propertyLongitude = this.optionalText(longitude);
+    }
+    const status = dto.propertyStatus ?? dto.property_status;
+    if (status !== undefined) {
+      property.propertyStatus = this.optionalText(status) ?? property.propertyStatus;
+    }
+    const description = dto.propertyDescription ?? dto.property_description;
+    if (description !== undefined) {
+      property.propertyDescription = this.optionalText(description);
+    }
+    const area = dto.propertyArea ?? dto.property_area;
+    if (area !== undefined) {
+      property.propertyArea = this.optionalText(area);
+    }
+    const tp = dto.propertyTP ?? dto.property_tp;
+    if (tp !== undefined) {
+      property.propertyTP = this.optionalText(tp);
+    }
+    const sir = dto.propertySIR ?? dto.property_sir;
+    if (sir !== undefined) {
+      property.propertySIR = this.optionalText(sir);
+    }
+    const listingType = dto.propertyListingType ?? dto.property_listing_type;
+    if (listingType !== undefined) {
+      property.propertyListingType = this.optionalText(listingType);
     }
 
-    if (dto.propertyStatus !== undefined) {
-      property.propertyStatus =
-        this.optionalText(dto.propertyStatus) ?? property.propertyStatus;
-    }
-
-    if (dto.propertyDescription !== undefined) {
-      property.propertyDescription = this.optionalText(dto.propertyDescription);
-    }
-
-    if (dto.propertyArea !== undefined) {
-      property.propertyArea = this.optionalText(dto.propertyArea);
-    }
-
-    if (dto.propertyTP !== undefined) {
-      property.propertyTP = this.optionalText(dto.propertyTP);
-    }
-
-    if (dto.propertySIR !== undefined) {
-      property.propertySIR = this.optionalText(dto.propertySIR);
-    }
-
-    if (dto.propertyListingType !== undefined) {
-      property.propertyListingType = this.optionalText(dto.propertyListingType);
-    }
-
-    // Handle file uploads → resolve URLs, then assign to entity
-    const [imageUrl, brochureUrl] = await Promise.all([
-      this.resolveFileUrl(
-        files?.propertyImage?.[0],
-        dto.propertyImage,
-        this.imagesDir,
-        'images',
-      ),
-      this.resolveFileUrl(
-        files?.propertyBroucher?.[0],
-        dto.propertyBroucher,
-        this.pdfDir,
-        'pdf',
-      ),
-    ]);
-
-    if (imageUrl !== null) {
-      property.propertyImage = imageUrl;
-    }
-
+    const brochureUrl = await this.resolveFileUrl(
+      files?.propertyBroucher?.[0],
+      dto.propertyBroucher ?? dto.propertyBrochure ?? dto.property_broucher,
+      this.pdfDir,
+      'pdf',
+    );
     if (brochureUrl !== null) {
       property.propertyBroucher = brochureUrl;
     }
 
-    if (dto.updatedBy !== undefined) {
-      property.updatedBy = dto.updatedBy;
+    // updatedBy from JWT token, not request body
+    property.updatedBy = updatedBy ?? null;
+
+    const savedProperty = await this.propertiesRepository.save(property);
+
+    const imageFiles = files?.propertyImage ?? [];
+    if (imageFiles.length > 0) {
+      const imageRows = imageFiles.map((file) => ({
+        propertyId: savedProperty.id,
+        imageUrl: this.saveUploadedFile(file, this.imagesDir, 'images'),
+        createdBy: updatedBy ?? null,
+      }));
+      await this.propertiesRepository.saveImagesBulk(imageRows);
     }
 
-    return this.propertiesRepository.save(property);
+    return this.findOne(savedProperty.id);
   }
 
   // ─── DELETE (soft) ─────────────────────────────────────────
@@ -258,10 +243,6 @@ export class PropertiesService {
 
   // ─── Private helpers ──────────────────────────────────────
 
-  /**
-   * Finds a property by id or throws.
-   * Validation + lookup are service concerns; the raw query is delegated to the repository.
-   */
   private async findExisting(id: string): Promise<Property> {
     if (!id || !/^\d+$/.test(id)) {
       throw new BadRequestException('Invalid property id.');
@@ -273,12 +254,6 @@ export class PropertiesService {
     return property;
   }
 
-  /**
-   * Resolves the final asset URL for a field that can come from either
-   * an uploaded file or a string value in the DTO.
-   *
-   * Priority: uploaded file > DTO string > null
-   */
   private async resolveFileUrl(
     file: Express.Multer.File | undefined,
     dtoValue: unknown,
@@ -291,40 +266,25 @@ export class PropertiesService {
     return this.optionalText(dtoValue);
   }
 
-  // ─── Validation utilities ─────────────────────────────────
-
   private requireText(value: unknown, fieldName: string): string {
     if (typeof value !== 'string' || !value.trim()) {
-      throw new BadRequestException(
-        `${fieldName} is required and must be a non-empty string.`,
-      );
+      throw new BadRequestException(`${fieldName} is required and must be a non-empty string.`);
     }
     return value.trim();
   }
 
   private optionalText(value: unknown): string | null {
-    if (value === undefined || value === null) {
-      return null;
-    }
+    if (value === undefined || value === null) return null;
     const str = String(value).trim();
     return str.length > 0 ? str : null;
   }
 
-  private parseOptionalNumber(
-    value: unknown,
-    fieldName: string,
-  ): number | null {
-    if (value === undefined || value === null || value === '') {
-      return null;
-    }
+  private parseOptionalNumber(value: unknown, fieldName: string): number | null {
+    if (value === undefined || value === null || value === '') return null;
     const num = Number(value);
-    if (isNaN(num)) {
-      throw new BadRequestException(`${fieldName} must be a valid number.`);
-    }
+    if (isNaN(num)) throw new BadRequestException(`${fieldName} must be a valid number.`);
     return num;
   }
-
-  // ─── File-system utilities ────────────────────────────────
 
   private ensureDirectoryExists(dirPath: string): void {
     if (!fs.existsSync(dirPath)) {
@@ -332,26 +292,17 @@ export class PropertiesService {
     }
   }
 
-  private saveUploadedFile(
-    file: Express.Multer.File,
-    targetDir: string,
-    folderName: string,
-  ): string {
+  private saveUploadedFile(file: Express.Multer.File, targetDir: string, folderName: string): string {
     this.ensureDirectoryExists(targetDir);
-
     const ext = path.extname(file.originalname) || '';
-    const baseName = path
-      .basename(file.originalname, ext)
-      .replace(/[^a-zA-Z0-9_-]/g, '_');
+    const baseName = path.basename(file.originalname, ext).replace(/[^a-zA-Z0-9_-]/g, '_');
     const uniqueName = `${baseName}_${Date.now()}_${Math.floor(Math.random() * 10000)}${ext}`;
     const destinationPath = path.join(targetDir, uniqueName);
-
     if (file.buffer) {
       fs.writeFileSync(destinationPath, file.buffer);
     } else if (file.path) {
       fs.copyFileSync(file.path, destinationPath);
     }
-
     return `/assets/${folderName}/${uniqueName}`;
   }
 }
