@@ -1,26 +1,44 @@
-import { ConflictException, Injectable, NotFoundException } from '@nestjs/common';
+import {
+  ConflictException,
+  Injectable,
+  NotFoundException,
+  UnauthorizedException,
+} from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
+import { JwtService } from '@nestjs/jwt';
+import * as bcrypt from 'bcryptjs';
 import { Repository } from 'typeorm';
-import { User } from './entities/user.entity';
+import { User, UserStatus } from './entities/user.entity';
+import { LoginUserDto } from './dto/user.dto';
 
 @Injectable()
 export class UsersService {
   constructor(
     @InjectRepository(User)
     private readonly userRepository: Repository<User>,
+    private readonly jwtService: JwtService,
   ) { }
 
   async create(userData: Partial<User>): Promise<User> {
+    const email = userData.email?.toLowerCase().trim();
+    const mobileNumber = userData.mobileNumber?.trim();
+    const mobileCountryCode = userData.mobileCountryCode?.trim();
+
     const isUserExist = await this.userRepository.findOne({
       where: [
-        ...(userData.email ? [{ email: userData.email }] : []),
-        ...(userData.mobileNumber ? [{ mobileNumber: userData.mobileNumber }] : []),
+        ...(email ? [{ email }] : []),
+        ...(mobileNumber ? [{ mobileNumber }] : []),
       ],
     });
     if (isUserExist) {
       throw new ConflictException('User With Same Email or Mobile Already Exists');
     }
-    const user = this.userRepository.create(userData);
+    const user = this.userRepository.create({
+      ...userData,
+      ...(email && { email }),
+      ...(mobileNumber && { mobileNumber }),
+      ...(mobileCountryCode && { mobileCountryCode }),
+    });
     return await this.userRepository.save(user);
   }
 
@@ -82,6 +100,38 @@ export class UsersService {
   }
 
 
+
+  async login(dto: LoginUserDto): Promise<{ accessToken: string; user: Partial<User> }> {
+    const user = await this.findByEmailWithPassword(dto.email);
+
+    if (!user || !user.password) {
+      throw new UnauthorizedException('Invalid email or password.');
+    }
+
+    if (user.isDeleted) {
+      throw new UnauthorizedException('This account has been deactivated.');
+    }
+
+    const isPasswordValid = await bcrypt.compare(dto.password, user.password);
+    if (!isPasswordValid) {
+      throw new UnauthorizedException('Invalid email or password.');
+    }
+
+    const accessToken = await this.generateToken(user);
+    return {
+      accessToken,
+      user: this.sanitizeUser(user),
+    };
+  }
+
+  async generateToken(user: User): Promise<string> {
+    const payload = {
+      sub: user.id,
+      email: user.email,
+      roleId: user.roleId,
+    };
+    return await this.jwtService.signAsync(payload);
+  }
 
   sanitizeUser(user: User): Partial<User> {
     const { password: _pw, ...safe } = user as User & { password?: string };

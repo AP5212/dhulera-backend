@@ -24,13 +24,14 @@ export class AdminService {
 
   async create(dto: CreateAdminUserDto): Promise<{ accessToken: string; user: Partial<User> }> {
     dto.roleId = "1";
+    dto.email = dto.email.toLowerCase().trim();
     const isAdminExist = await this.adminRepository.findOne({
       where: [
         { email: dto.email },
       ]
     });
     if (isAdminExist) {
-      throw new ConflictException('Admin with this email or mobile number already exists')
+      throw new ConflictException('Admin with this email or mobile number already exists');
     }
     dto.password = await bcrypt.hash(dto.password, 10);
     const adminUser = await this.adminRepository.save(dto);
@@ -39,10 +40,19 @@ export class AdminService {
   }
 
   async login(dto: AdminLoginDto): Promise<{ accessToken: string; user: Partial<User> }> {
+    const email = dto.email.toLowerCase().trim();
+    const adminUser = await this.adminRepository
+      .createQueryBuilder('user')
+      .addSelect('user.password')
+      .where('LOWER(user.email) = LOWER(:email)', { email })
+      .getOne();
 
-    const adminUser = await this.adminRepository.findOneBy({ email: dto.email });
     if (!adminUser || !adminUser.password) {
       throw new UnauthorizedException('Invalid email or password.');
+    }
+
+    if (adminUser.isDeleted) {
+      throw new UnauthorizedException('This account has been deactivated.');
     }
 
     const isValid = await bcrypt.compare(dto.password, adminUser.password);

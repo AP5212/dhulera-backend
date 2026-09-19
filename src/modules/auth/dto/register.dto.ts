@@ -1,24 +1,31 @@
-import { IsEmail, IsNotEmpty, IsString, MinLength } from 'class-validator';
+import { IsBoolean, IsNumber, IsEmail, IsNotEmpty, IsOptional, IsString } from 'class-validator';
 
-export class RegisterDto {
+export class CreateUserDto {
   @IsString()
-  @IsNotEmpty({ message: 'Name is required.' })
+  @IsNotEmpty()
   name!: string;
 
-  @IsEmail({}, { message: 'Invalid email address.' })
-  @IsNotEmpty({ message: 'Email is required.' })
+  @IsEmail()
+  @IsNotEmpty()
   email!: string;
 
   @IsString()
-  @MinLength(6, { message: 'Password must be at least 6 characters long.' })
-  @IsNotEmpty({ message: 'Password is required.' })
-  password!: string;
+  @IsOptional()
+  mobileCountryCode?: string | null;
 
   @IsString()
-  @IsNotEmpty({ message: 'Mobile number is required.' })
-  mobileNumber!: string;
+  @IsOptional()
+  mobileNumber?: string | null;
+
+  @IsBoolean()
+  @IsOptional()
+  isPropertyUser?: boolean;
 
   @IsString()
-  @IsNotEmpty({ message: 'Mobile country code is required.' })
-  mobileCountryCode!: string;
+  @IsOptional()
+  roleId?: string;
+
+  @IsString()
+  @IsOptional()
+  password?: string | null;
 }

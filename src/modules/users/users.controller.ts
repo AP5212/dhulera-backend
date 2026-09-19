@@ -3,13 +3,15 @@ import {
   Controller,
   Delete,
   Get,
+  HttpCode,
+  HttpStatus,
   Param,
   Patch,
   Post,
   UseFilters,
 } from '@nestjs/common';
 import * as bcrypt from 'bcryptjs';
-import { CreateUserDto, UpdateUserDto } from './dto/user.dto';
+import { CreateUserDto, LoginUserDto, UpdateUserDto } from './dto/user.dto';
 // import { UserExceptionFilter } from './filters/user-exception.filter';
 import { UsersService } from './users.service';
 
@@ -25,6 +27,13 @@ export class UsersController {
     }
     const data = await this.usersService.create(createUserDto);
     return this.response('User created successfully.', this.usersService.sanitizeUser(data));
+  }
+
+  @HttpCode(HttpStatus.OK)
+  @Post('login')
+  async login(@Body() loginDto: LoginUserDto) {
+    const data = await this.usersService.login(loginDto);
+    return this.response('Login successful.', data);
   }
 
   @Get()
