@@ -8,6 +8,7 @@ import * as fs from 'fs';
 import * as path from 'path';
 import { CreatePropertyDto } from './dto/create-property.dto';
 import { DeletePropertyDto } from './dto/delete-property.dto';
+import { SearchPropertyDto } from './dto/search-property.dto';
 import { UpdatePropertyDto } from './dto/update-property.dto';
 import { Property } from './entities/property.entity';
 import { PropertiesRepository } from './properties.repository';
@@ -96,6 +97,81 @@ export class PropertiesService {
     }
 
     return this.attachBaseUrl(savedProperty);
+  }
+
+  // ─── SEARCH ────────────────────────────────────────────────
+
+  async search(dto: SearchPropertyDto): Promise<{
+    status: boolean;
+    message: string;
+    data: Property[];
+    totalItems: number;
+    totalPages: number;
+    currentPage: number;
+    itemsPerPage: number;
+  }> {
+    const cityLocality = this.optionalText(
+      dto.search_city_locality ?? dto.locality ?? dto.city ?? dto.q,
+    );
+    const propertyType = this.optionalText(
+      dto.search_property_type ?? dto.property_type ?? dto.propertyType,
+    );
+    const budget = this.optionalText(
+      dto.search_property_budget ?? dto.budget ?? dto.property_budget,
+    );
+    const listingType = this.optionalText(
+      dto.search_listing_type ?? dto.listing_type ?? dto.type,
+    );
+    const category = this.optionalText(dto.category ?? dto.selectedChip);
+    const tp = this.optionalText(dto.property_tp ?? dto.propertyTP);
+    const sir = this.optionalText(dto.property_sir ?? dto.propertySIR);
+    const sortBy = this.optionalText(dto.sortBy ?? dto.sort_by) ?? 'recommended';
+
+    const minPrice = dto.minPrice ? Number(dto.minPrice) : undefined;
+    const maxPrice = dto.maxPrice ? Number(dto.maxPrice) : undefined;
+
+    const currentPage = Math.max(
+      parseInt(dto.currentPage ?? dto.page ?? '1', 10) || 1,
+      1,
+    );
+    const itemsPerPage = Math.max(
+      parseInt(dto.itemsPerPage ?? dto.limit ?? '20', 10) || 20,
+      1,
+    );
+    const skip = (currentPage - 1) * itemsPerPage;
+
+    const [properties, totalItems] =
+      await this.propertiesRepository.searchProperties({
+        cityLocality: cityLocality ?? undefined,
+        propertyType: propertyType ?? undefined,
+        budget: budget ?? undefined,
+        minPrice,
+        maxPrice,
+        listingType: listingType ?? undefined,
+        category: category ?? undefined,
+        tp: tp ?? undefined,
+        sir: sir ?? undefined,
+        sortBy,
+        skip,
+        take: itemsPerPage,
+      });
+
+    const data = properties.map((property) => this.attachBaseUrl(property));
+    const totalPages = Math.ceil(totalItems / itemsPerPage) || 0;
+    const message =
+      data.length > 0
+        ? 'Properties retrieved successfully.'
+        : 'Data not found';
+
+    return {
+      status: true,
+      message,
+      data,
+      totalItems,
+      totalPages,
+      currentPage,
+      itemsPerPage,
+    };
   }
 
   // ─── READ ──────────────────────────────────────────────────

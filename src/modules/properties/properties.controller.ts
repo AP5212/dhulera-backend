@@ -15,6 +15,7 @@ import type { AuthenticatedRequest } from '../users/middleware/jwt-auth.middlewa
 import { CreatePropertyDto } from './dto/create-property.dto';
 import { DeletePropertyDto } from './dto/delete-property.dto';
 import { PaginationQueryDto } from './dto/pagination-query.dto';
+import { SearchPropertyDto } from './dto/search-property.dto';
 import { UpdatePropertyDto } from './dto/update-property.dto';
 import { PropertyExceptionFilter } from './filters/property-exception.filter';
 import { PropertiesService } from './properties.service';
@@ -101,11 +102,59 @@ export class PropertiesController {
   }
 
   @Get()
-  async findAll(@Query() query: PaginationQueryDto) {
-    const currentPage = Math.max(parseInt(query.currentPage ?? '1', 10) || 1, 1);
-    const itemsPerPage = Math.max(parseInt(query.itemsPerPage ?? '10', 10) || 10, 1);
+  async findAll(@Query() query: SearchPropertyDto) {
+    const hasSearchCriteria =
+      query.search_city_locality ||
+      query.locality ||
+      query.city ||
+      query.q ||
+      query.search_property_type ||
+      query.property_type ||
+      query.propertyType ||
+      query.search_property_budget ||
+      query.budget ||
+      query.property_budget ||
+      query.search_listing_type ||
+      query.listing_type ||
+      query.type ||
+      query.category ||
+      query.selectedChip ||
+      query.property_tp ||
+      query.propertyTP ||
+      query.property_sir ||
+      query.propertySIR ||
+      query.minPrice ||
+      query.maxPrice ||
+      query.sortBy ||
+      query.sort_by;
+
+    if (hasSearchCriteria) {
+      return this.propertiesService.search(query);
+    }
+
+    const currentPage = Math.max(parseInt(query.currentPage ?? query.page ?? '1', 10) || 1, 1);
+    const itemsPerPage = Math.max(parseInt(query.itemsPerPage ?? query.limit ?? '10', 10) || 10, 1);
     const result = await this.propertiesService.findAll(currentPage, itemsPerPage);
     return { status: true, message: 'Properties retrieved successfully.', ...result };
+  }
+
+  /**
+   * GET /properties/search
+   * Search properties by city/locality, property type, budget, listing type, chips, etc.
+   */
+  @Get('search')
+  async searchGet(@Query() query: SearchPropertyDto) {
+    return this.propertiesService.search(query);
+  }
+
+  /**
+   * POST /properties/search
+   * Search properties via request body or query params
+   */
+  @Post('search')
+  async searchPost(@Body() body: SearchPropertyDto, @Query() query: SearchPropertyDto) {
+    const merged = { ...query, ...body };
+    return this.propertiesService.search(merged);
   }
 
   @Get(':id')
