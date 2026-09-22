@@ -46,11 +46,15 @@ export class User {
   @Column({ name: "is_deleted", type: "boolean", default: false })
   isDeleted: boolean;
 
+  @Column({ name: 'user_otp', type: 'varchar', length: 10, nullable: true })
+  userOtp!: string | null;
+
+  @Column({ name: 'otp_valid_till', type: 'timestamp', nullable: true })
+  otpValidTill!: Date | null;
+
   @CreateDateColumn({ name: 'created_at', type: 'timestamp' })
   createdAt!: Date;
 
   @UpdateDateColumn({ name: 'updated_at', type: 'timestamp', nullable: true })
   updatedAt!: Date | null;
-
-
 }

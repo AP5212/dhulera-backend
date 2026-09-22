@@ -4,6 +4,8 @@ export * from './auth.service';
 export * from './dto/login.dto';
 export * from './dto/otp-request.dto';
 export * from './dto/otp-verify.dto';
+export * from './dto/otp-resend.dto';
 export * from './dto/register.dto';
 export * from './guards/jwt-auth.guard';
+export * from './services/otp.service';
 export * from './types/auth-user.type';

@@ -1,6 +1,6 @@
-import { IsEmail, IsNotEmpty, IsOptional, IsString } from 'class-validator';
+import { IsEmail, IsOptional, IsString } from 'class-validator';
 
-export class OtpVerifyDto {
+export class OtpResendDto {
   @IsEmail({}, { message: 'Invalid email address.' })
   @IsOptional()
   email?: string;
@@ -12,8 +12,4 @@ export class OtpVerifyDto {
   @IsString()
   @IsOptional()
   mobileNumber?: string;
-
-  @IsString()
-  @IsNotEmpty({ message: 'OTP is required.' })
-  otp!: string;
 }
