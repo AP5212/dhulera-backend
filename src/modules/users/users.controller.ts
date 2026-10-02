@@ -8,23 +8,16 @@ import {
   Param,
   Patch,
   Post,
-  UseFilters,
 } from '@nestjs/common';
-import * as bcrypt from 'bcryptjs';
 import { CreateUserDto, LoginUserDto, UpdateUserDto } from './dto/user.dto';
-// import { UserExceptionFilter } from './filters/user-exception.filter';
 import { UsersService } from './users.service';
 
 @Controller('users')
-// @UseFilters(UserExceptionFilter)
 export class UsersController {
   constructor(private readonly usersService: UsersService) { }
 
-  @Post("create")
+  @Post('create')
   async create(@Body() createUserDto: CreateUserDto) {
-    if (createUserDto.password) {
-      createUserDto.password = await bcrypt.hash(createUserDto.password, 10);
-    }
     const data = await this.usersService.create(createUserDto);
     return this.response('User created successfully.', this.usersService.sanitizeUser(data));
   }
@@ -39,19 +32,22 @@ export class UsersController {
   @Get()
   async findAll() {
     const users = await this.usersService.findAll();
-    return this.response('Users retrieved successfully.', users);
+    return this.response(
+      'Users retrieved successfully.',
+      users.map((u) => this.usersService.sanitizeUser(u)),
+    );
   }
 
   @Get(':id')
   async findOne(@Param('id') id: string) {
     const user = await this.usersService.findOneOrFail(id);
-    return this.response('User retrieved successfully.', user);
+    return this.response('User retrieved successfully.', this.usersService.sanitizeUser(user));
   }
 
   @Patch(':id')
   async update(@Param('id') id: string, @Body() dto: UpdateUserDto) {
     const user = await this.usersService.update(id, dto);
-    return this.response('User updated successfully.', user);
+    return this.response('User updated successfully.', this.usersService.sanitizeUser(user));
   }
 
   @Delete(':id')

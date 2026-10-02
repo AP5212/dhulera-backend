@@ -1,21 +1,25 @@
-import { IsBoolean, IsNumber, IsEmail, IsNotEmpty, IsOptional, IsString } from 'class-validator';
+import { IsBoolean, IsEmail, IsNotEmpty, IsOptional, IsString } from 'class-validator';
 
 export class CreateUserDto {
   @IsString()
-  @IsNotEmpty()
+  @IsNotEmpty({ message: 'Name is required.' })
   name!: string;
 
-  @IsEmail()
-  @IsNotEmpty()
+  @IsEmail({}, { message: 'Invalid email address.' })
+  @IsNotEmpty({ message: 'Email is required.' })
   email!: string;
 
   @IsString()
   @IsOptional()
-  mobileCountryCode?: string | null;
+  password?: string | null;
 
   @IsString()
   @IsOptional()
   mobileNumber?: string | null;
+
+  @IsString()
+  @IsOptional()
+  mobileCountryCode?: string | null;
 
   @IsBoolean()
   @IsOptional()
@@ -23,11 +27,7 @@ export class CreateUserDto {
 
   @IsString()
   @IsOptional()
-  roleId?: string;
-
-  @IsString()
-  @IsOptional()
-  password?: string | null;
+  roleId?: string | null;
 }
 
 export class UpdateUserDto {
@@ -35,17 +35,29 @@ export class UpdateUserDto {
   @IsOptional()
   name?: string;
 
-  @IsEmail()
+  @IsEmail({}, { message: 'Invalid email address.' })
   @IsOptional()
   email?: string;
 
   @IsString()
   @IsOptional()
-  mobileNumber?: string;
+  password?: string;
 
   @IsString()
   @IsOptional()
-  mobileCountryCode?: string;
+  mobileNumber?: string | null;
+
+  @IsString()
+  @IsOptional()
+  mobileCountryCode?: string | null;
+
+  @IsBoolean()
+  @IsOptional()
+  isPropertyUser?: boolean;
+
+  @IsString()
+  @IsOptional()
+  roleId?: string | null;
 }
 
 export class LoginUserDto {
