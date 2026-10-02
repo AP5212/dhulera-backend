@@ -6,7 +6,6 @@ import {
   Post,
   Query,
   Req,
-  UnauthorizedException,
   UseFilters,
 } from '@nestjs/common';
 import type { AuthenticatedRequest } from '../users/middleware/jwt-auth.middleware';
@@ -22,15 +21,23 @@ import { MasterCategoryService } from './master-category.service';
 export class MasterCategoryController {
   constructor(private readonly masterCategoryService: MasterCategoryService) {}
 
+  @Post()
+  async createRoot(
+    @Body() createMasterCategoryDto: CreateMasterCategoryDto,
+    @Req() request: AuthenticatedRequest,
+  ): Promise<ApiResponse> {
+    const userId = this.resolveUserId(createMasterCategoryDto.createdBy, request);
+    const data = await this.masterCategoryService.create(createMasterCategoryDto, userId);
+    return this.successResponse('Master category created successfully.', data);
+  }
+
   @Post('create')
   async create(
     @Body() createMasterCategoryDto: CreateMasterCategoryDto,
     @Req() request: AuthenticatedRequest,
   ): Promise<ApiResponse> {
-    const data = await this.masterCategoryService.create(
-      createMasterCategoryDto,
-      this.getAuthenticatedUserId(request),
-    );
+    const userId = this.resolveUserId(createMasterCategoryDto.createdBy, request);
+    const data = await this.masterCategoryService.create(createMasterCategoryDto, userId);
     return this.successResponse('Master category created successfully.', data);
   }
 
@@ -39,10 +46,8 @@ export class MasterCategoryController {
     @Body() createMasterCategoryDto: CreateMasterCategoryDto,
     @Req() request: AuthenticatedRequest,
   ): Promise<ApiResponse> {
-    const data = await this.masterCategoryService.createSubCategory(
-      createMasterCategoryDto,
-      this.getAuthenticatedUserId(request),
-    );
+    const userId = this.resolveUserId(createMasterCategoryDto.createdBy, request);
+    const data = await this.masterCategoryService.createSubCategory(createMasterCategoryDto, userId);
     return this.successResponse('Subcategory created successfully.', data);
   }
 
@@ -50,7 +55,11 @@ export class MasterCategoryController {
   async update(
     @Param('id') id: string,
     @Body() updateMasterCategoryDto: UpdateMasterCategoryDto,
+    @Req() request: AuthenticatedRequest,
   ): Promise<ApiResponse> {
+    if (!updateMasterCategoryDto.updatedBy) {
+      updateMasterCategoryDto.updatedBy = this.resolveUserId(undefined, request);
+    }
     const data = await this.masterCategoryService.update(id, updateMasterCategoryDto);
     return this.successResponse('Master category updated successfully.', data);
   }
@@ -59,7 +68,11 @@ export class MasterCategoryController {
   async remove(
     @Param('id') id: string,
     @Body() deleteMasterCategoryDto: DeleteMasterCategoryDto,
+    @Req() request: AuthenticatedRequest,
   ): Promise<ApiResponse> {
+    if (!deleteMasterCategoryDto.updatedBy) {
+      deleteMasterCategoryDto.updatedBy = this.resolveUserId(undefined, request);
+    }
     const data = await this.masterCategoryService.remove(id, deleteMasterCategoryDto);
     return this.successResponse('Master category deleted successfully.', data);
   }
@@ -80,12 +93,15 @@ export class MasterCategoryController {
     return { status: true, message, data };
   }
 
-  private getAuthenticatedUserId(request: AuthenticatedRequest): string {
-    const userId = request.user?.user_id;
-    if (!userId) {
-      throw new UnauthorizedException('Authenticated user information is missing.');
+  private resolveUserId(explicitUserId?: string, request?: AuthenticatedRequest): string {
+    if (explicitUserId && /^\d+$/.test(explicitUserId)) {
+      return explicitUserId;
     }
-    return userId;
+    const userFromReq = request?.user?.user_id || request?.user?.id || request?.user?.sub;
+    if (userFromReq && /^\d+$/.test(String(userFromReq))) {
+      return String(userFromReq);
+    }
+    return '1';
   }
 }
 

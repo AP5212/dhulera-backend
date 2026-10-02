@@ -1,3 +1,7 @@
+import { IsOptional, IsString } from 'class-validator';
+
 export class DeleteMasterCategoryDto {
-  updatedBy!: string;
+  @IsOptional()
+  @IsString()
+  updatedBy?: string;
 }
