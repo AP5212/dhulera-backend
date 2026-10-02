@@ -1,170 +1,326 @@
-# User API Documentation
+# User & Authentication API Documentation
 
 Base URL: `http://localhost:5000`
 
-All endpoints return JSON. Send `Content-Type: application/json` with every `POST` request. `POST /users/register` requires an access token; login remains public so a token can be obtained.
+All endpoints return JSON responses. Send `Content-Type: application/json` for requests with payloads. Protected routes require a Bearer token in the `Authorization` header (`Authorization: Bearer <access-token>`).
 
-For the protected endpoint, send either `Authorization: Bearer <access-token>` or `Authorization: <access-token>`.
+---
 
-## Validation and behavior
+## Database Table Schema (`public.dhulera_users`)
 
-- `username`, `firstName`, `password`, and `roleId` are required during registration and cannot be blank.
-- Login requires non-blank `username` and `password`.
-- `email` is optional; when provided, it must be a valid email address.
-- `mobileNumber` is optional; when provided, it must contain digits only. Send it as a string so a leading zero is retained.
-- ID fields (`id`, `roleId`, `parentId`, `stateId`, `districtId`, `subDistrictId`, and `updatedBy`) must be positive integers. Use strings for IDs because database IDs are bigints.
-- During registration, `createdBy` is taken from the authenticated token's `user_id` claim; do not send it in the request body.
-- Optional text fields may be omitted or sent as `null`; supplied text cannot be blank.
-- A registered user always starts with `status: "ACTIVE"`; the request cannot set the status.
-- Usernames, email addresses, and mobile numbers are unique at the database level.
-- Passwords are never returned in an API response.
+| Column Name | Type | Modifiers | Description |
+| :--- | :--- | :--- | :--- |
+| `id` | `bigint` | Primary Key, Auto Increment | Unique user identifier |
+| `name` | `varchar(150)` | Not Null | Full user name |
+| `email` | `varchar(255)` | Unique, Not Null | Primary login email |
+| `password` | `varchar(255)` | Nullable, Hidden (`select: false`) | Bcrypt hashed password |
+| `mobile_number` | `varchar(20)` | Unique, Nullable | Contact mobile number |
+| `mobile_country_code` | `varchar(10)` | Nullable | Country dial code (e.g. `+91`) |
+| `created_at` | `timestamp` | Default `CURRENT_TIMESTAMP` | Account creation timestamp |
+| `updated_at` | `timestamp` | Default `CURRENT_TIMESTAMP` | Last updated timestamp |
+| `role_id` | `bigint` | Nullable | Assigned role identifier |
+| `is_property_user` | `boolean` | Default `false` | Real estate / property user flag |
+| `status` | `varchar(150)` | Default `'ACTIVE'` | Account status (`ACTIVE`, `INACTIVE`, `BLOCKED`, `DELETED`) |
+| `is_deleted` | `boolean` | Default `false` | Soft-deletion flag |
+| `user_otp` | `varchar(10)` | Nullable | Temporary OTP string |
+| `otp_valid_till` | `timestamp` | Nullable | Expiration timestamp for OTP |
 
-Successful responses use this envelope:
+---
 
-```json
-{ "status": true, "message": "Descriptive success message", "data": {} }
-```
+## Response Envelopes
 
-Error responses use this envelope:
-
-```json
-{ "status": false, "message": "Descriptive error message" }
-```
-
-## Endpoint summary
-
-| Action | Endpoint | Success status |
-| --- | --- | --- |
-| Register user | `POST /users/register` | `201` |
-| Log in | `POST /users/login` | `201` |
-| List users | `GET /users` | `200` |
-| Get user | `GET /users/:id` | `200` |
-| Delete user | `POST /users/delete/:id` | `201` |
-
-## 1. Register user
-
-`POST /users/register`
-
-Request body:
-
-```json
-{
-  "username": "9711402225",
-  "firstName": "Gajanand",
-  "lastName": "Pandey",
-  "email": "gnpandey1234@gmail.com",
-  "mobileNumber": "9711402225",
-  "password": "Pintu@f1987",
-  "roleId": "1",
-  "parentId": null,
-  "stateId": "1",
-  "districtId": "1",
-  "subDistrictId": "1",
-  "location": "Dholera"
-}
-```
-
-Required: `username`, `firstName`, `password`, `roleId`.
-
-Optional: `lastName`, `email`, `mobileNumber`, `parentId`, `stateId`, `districtId`, `subDistrictId`, `location`.
-
-Send an access token in the `Authorization` header. The new record's `createdBy` value is always populated from the token's `user_id` claim.
-
-Success response (`201`):
-
+### Success Envelope
 ```json
 {
   "status": true,
-  "message": "User registered successfully.",
-  "data": {
-    "id": "1",
-    "username": "9711402225",
-    "firstName": "Gajanand",
-    "lastName": "Pandey",
-    "email": "gnpandey1234@gmail.com",
-    "mobileNumber": "9711402225",
-    "roleId": "1",
-    "parentId": null,
-    "stateId": "1",
-    "districtId": "1",
-    "subDistrictId": "1",
-    "location": "Jaipur",
-    "emailVerified": false,
-    "mobileVerified": false,
-    "lastLoginAt": null,
-    "failedLoginCount": 0,
-    "lockedUntil": null,
-    "status": "ACTIVE",
-    "createdAt": "2026-08-29T00:00:00.000Z",
-    "updatedAt": "2026-08-29T00:00:00.000Z"
-  }
+  "message": "Operation description",
+  "data": {}
 }
 ```
 
-## 2. Login
-
-`POST /users/login`
-
-Request body:
-
+### Error Envelope
 ```json
 {
-  "username": "9711402225",
-  "password": "Pintu@f1987"
+  "statusCode": 400,
+  "message": "Descriptive error message",
+  "error": "Bad Request"
 }
 ```
 
-Both fields are required and cannot be blank. Only users with `ACTIVE` status can sign in. A successful login updates the user's `lastLoginAt` and resets `failedLoginCount` to `0`.
+---
 
-Success response (`201`):
+## 1. User Login (Email & Password)
 
+`POST /users/login` (or `POST /auth/login`)
+
+Authenticates an existing user via `email` and `password`.
+
+### Request Headers
+```http
+Content-Type: application/json
+```
+
+### Request Body
+```json
+{
+  "email": "sachin@example.com",
+  "password": "password123"
+}
+```
+
+### Success Response (`200 OK`)
 ```json
 {
   "status": true,
   "message": "Login successful.",
   "data": {
-    "accessToken": "<JWT access token>"
+    "accessToken": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
+    "user": {
+      "id": "8",
+      "name": "Sachin",
+      "email": "sachin@example.com",
+      "mobileNumber": null,
+      "mobileCountryCode": null,
+      "roleId": "1",
+      "isPropertyUser": false,
+      "status": "ACTIVE",
+      "isDeleted": false,
+      "createdAt": "2026-09-17T13:07:40.080Z",
+      "updatedAt": "2026-09-17T13:07:40.080Z"
+    }
   }
 }
 ```
 
-## 3. List users
+---
+
+## 2. User Registration / Create User
+
+`POST /users/create` (or `POST /auth/register`)
+
+Creates a new user account with hashed password and returns the sanitized user profile.
+
+### Request Body
+```json
+{
+  "name": "Gajanand Pandey",
+  "email": "gnpandey1234@gmail.com",
+  "password": "password123",
+  "mobileNumber": "9711402225",
+  "mobileCountryCode": "+91",
+  "roleId": "1",
+  "isPropertyUser": false
+}
+```
+
+### Field Specifications
+- `name` *(Required, string)*: Full name of the user.
+- `email` *(Required, string, email)*: Unique email address.
+- `password` *(Optional, string)*: User password (will be securely hashed with Bcrypt 10 rounds).
+- `mobileNumber` *(Optional, string)*: Mobile number without country code.
+- `mobileCountryCode` *(Optional, string)*: Country code prefix (default `+91`).
+- `roleId` *(Optional, string)*: Identifier of the role assigned to the user.
+- `isPropertyUser` *(Optional, boolean)*: Property user indicator (default `false`).
+
+### Success Response (`201 Created`)
+```json
+{
+  "status": true,
+  "message": "User created successfully.",
+  "data": {
+    "id": "11",
+    "name": "Gajanand Pandey",
+    "email": "gnpandey1234@gmail.com",
+    "mobileNumber": "9711402225",
+    "mobileCountryCode": "+91",
+    "roleId": "1",
+    "isPropertyUser": false,
+    "status": "ACTIVE",
+    "isDeleted": false,
+    "createdAt": "2026-09-23T04:21:37.440Z",
+    "updatedAt": "2026-09-23T04:21:37.440Z"
+  }
+}
+```
+
+---
+
+## 3. List All Users
 
 `GET /users`
 
-Returns every user except soft-deleted users, ordered by `firstName` and then `lastName` in ascending order. The response `data` is an array of the user object shown above.
+Retrieves all non-deleted active users in descending order of creation.
 
-Success response message: `Users retrieved successfully.`
+### Success Response (`200 OK`)
+```json
+{
+  "status": true,
+  "message": "Users retrieved successfully.",
+  "data": [
+    {
+      "id": "11",
+      "name": "Gajanand Pandey",
+      "email": "gnpandey1234@gmail.com",
+      "mobileNumber": "9711402225",
+      "mobileCountryCode": "+91",
+      "roleId": "1",
+      "isPropertyUser": false,
+      "status": "ACTIVE",
+      "isDeleted": false,
+      "createdAt": "2026-09-23T04:21:37.440Z",
+      "updatedAt": "2026-09-23T04:21:57.509Z"
+    },
+    {
+      "id": "8",
+      "name": "Sachin",
+      "email": "sachin@example.com",
+      "mobileNumber": null,
+      "mobileCountryCode": null,
+      "roleId": "1",
+      "isPropertyUser": false,
+      "status": "ACTIVE",
+      "isDeleted": false,
+      "createdAt": "2026-09-17T13:07:40.080Z",
+      "updatedAt": "2026-09-17T13:07:40.080Z"
+    }
+  ]
+}
+```
 
-## 4. Get user by ID
+---
+
+## 4. Get User By ID
 
 `GET /users/:id`
 
-Example: `GET /users/1`
+Retrieves details for a specific user by their database primary key.
 
-The ID must be a positive integer. Soft-deleted users are treated as not found.
+### Path Parameters
+- `id` *(Required, integer string)*: Numeric User ID (e.g. `8`, `11`).
 
-Success response message: `User retrieved successfully.`
-
-## 5. Delete user
-
-`POST /users/delete/:id`
-
-Example: `POST /users/delete/1`
-
-Request body:
-
+### Success Response (`200 OK`)
 ```json
-{ "updatedBy": "1" }
+{
+  "status": true,
+  "message": "User retrieved successfully.",
+  "data": {
+    "id": "8",
+    "name": "Sachin",
+    "email": "sachin@example.com",
+    "mobileNumber": null,
+    "mobileCountryCode": null,
+    "roleId": "1",
+    "isPropertyUser": false,
+    "status": "ACTIVE",
+    "isDeleted": false,
+    "createdAt": "2026-09-17T13:07:40.080Z",
+    "updatedAt": "2026-09-17T13:07:40.080Z"
+  }
+}
 ```
 
-`updatedBy` is optional but, when supplied, must be a positive integer. This performs a soft delete by setting the user's status to `DELETED`; the user is then excluded from list and single-user endpoints.
+---
 
-Success response message: `User deleted successfully.`
+## 5. Update User
 
-## Common errors
+`PATCH /users/:id`
 
-- `400 Bad Request`: a required text field is blank, email format is invalid, mobile number contains non-digits, an ID is invalid, or `PASSWORD_ENCRYPTION_KEY` is not configured.
-- `401 Unauthorized`: the register token is missing, invalid, or expired; the username/password is invalid; or the user's status is not `ACTIVE`.
-- `404 Not Found`: the user does not exist or has been soft-deleted.
-- `500 Internal Server Error`: an unexpected server or database error, including a database uniqueness violation.
+Updates fields on an existing user. Password updates will be automatically hashed.
+
+### Path Parameters
+- `id` *(Required, integer string)*: Target User ID to update.
+
+### Request Body
+```json
+{
+  "name": "Sachin Updated",
+  "mobileNumber": "9876543210",
+  "mobileCountryCode": "+91"
+}
+```
+
+### Success Response (`200 OK`)
+```json
+{
+  "status": true,
+  "message": "User updated successfully.",
+  "data": {
+    "id": "8",
+    "name": "Sachin Updated",
+    "email": "sachin@example.com",
+    "mobileNumber": "9876543210",
+    "mobileCountryCode": "+91",
+    "roleId": "1",
+    "isPropertyUser": false,
+    "status": "ACTIVE",
+    "isDeleted": false,
+    "createdAt": "2026-09-17T13:07:40.080Z",
+    "updatedAt": "2026-10-02T16:50:00.000Z"
+  }
+}
+```
+
+---
+
+## 6. Delete User (Soft Delete)
+
+`DELETE /users/:id`
+
+Marks the user account as deleted (`is_deleted: true`, `status: INACTIVE`).
+
+### Path Parameters
+- `id` *(Required, integer string)*: Target User ID.
+
+### Success Response (`200 OK`)
+```json
+{
+  "status": true,
+  "message": "User deleted successfully.",
+  "data": null
+}
+```
+
+---
+
+## 7. OTP Verification (Optional Verification Flow)
+
+`POST /auth/verify-otp`
+
+Validates user OTP and activates the account.
+
+### Request Body
+```json
+{
+  "email": "pathaks411@gmail.com",
+  "otp": "123456"
+}
+```
+
+### Success Response (`200 OK`)
+```json
+{
+  "status": true,
+  "message": "OTP verified successfully.",
+  "data": {
+    "accessToken": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
+    "user": {
+      "id": "7",
+      "name": "Sachin User",
+      "email": "pathaks411@gmail.com",
+      "status": "ACTIVE"
+    }
+  }
+}
+```
+
+---
+
+## Common Error Codes
+
+| Status Code | Error Type | Cause |
+| :--- | :--- | :--- |
+| `400 Bad Request` | Validation Error | Missing required fields, invalid email format, expired/invalid OTP |
+| `401 Unauthorized` | Auth Error | Incorrect email/password combination or deactivated account |
+| `404 Not Found` | Entity Missing | User ID does not exist |
+| `409 Conflict` | Duplicate Key | Email address or mobile number is already registered |
+| `500 Internal Error`| Server Exception | Unhandled database or system exception |
