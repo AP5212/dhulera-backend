@@ -23,10 +23,10 @@ export class RolesController {
     @Body() dto: CreateRoleDto,
     @Req() request: AuthenticatedRequest,
   ) {
-    const createdBy = request.user?.user_id;
+    const createdBy = request.user?.user_id || dto.createdBy;
     if (!createdBy)
       throw new UnauthorizedException(
-        'Authenticated user information is missing.',
+        'Authenticated user information is missing. Provide an access token or createdBy in request body.',
       );
 
     return this.response(

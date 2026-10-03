@@ -1,6 +1,6 @@
 # Role Master API Documentation
 
-Base URL: `http://localhost:3000`
+Base URL: ``
 
 All endpoints return JSON. `POST /roles/create` requires an access token in the `Authorization` header. Send `Content-Type: application/json` for `POST` requests.
 

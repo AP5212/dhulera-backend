@@ -1,6 +1,6 @@
 # Location Master API Documentation
 
-Base URL: `http://localhost:3000`
+Base URL: ``
 
 All endpoints return JSON. Send `Content-Type: application/json` with every `POST` request. The three create endpoints require an access token; read, update, and delete endpoints currently do not.
 
