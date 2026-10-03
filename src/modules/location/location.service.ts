@@ -39,6 +39,8 @@ export class LocationService {
       this.stateRepository.create({
         stateCode,
         stateName,
+        stateLatitude: this.optionalText(dto.stateLatitude ?? dto.state_latitude),
+        stateLongitude: this.optionalText(dto.stateLongitude ?? dto.state_longitude),
         createdBy: this.requireBigInt(authenticatedUserId, 'createdBy'),
         status: this.validateStatus(dto.status),
       }),
@@ -60,6 +62,12 @@ export class LocationService {
     }
     state.stateCode = stateCode;
     state.stateName = stateName;
+    if (dto.stateLatitude !== undefined || dto.state_latitude !== undefined) {
+      state.stateLatitude = this.optionalText(dto.stateLatitude ?? dto.state_latitude);
+    }
+    if (dto.stateLongitude !== undefined || dto.state_longitude !== undefined) {
+      state.stateLongitude = this.optionalText(dto.stateLongitude ?? dto.state_longitude);
+    }
     state.updatedBy = this.optionalBigInt(dto.updatedBy, 'updatedBy');
     if (dto.status !== undefined)
       state.status = this.validateStatus(dto.status);
@@ -89,6 +97,13 @@ export class LocationService {
         stateId,
         districtCode,
         districtName: this.requireText(dto.districtName, 'districtName'),
+        districtLatitude: this.optionalText(dto.districtLatitude ?? dto.district_latitude),
+        districtLongitude: this.optionalText(
+          dto.districtLongitude ??
+            dto.district_longitude ??
+            dto.stateLongitude ??
+            dto.state_longitude,
+        ),
         createdBy: this.requireBigInt(authenticatedUserId, 'createdBy'),
         status: this.validateStatus(dto.status),
       }),
@@ -118,6 +133,22 @@ export class LocationService {
         dto.districtName,
         'districtName',
       );
+    if (dto.districtLatitude !== undefined || dto.district_latitude !== undefined) {
+      district.districtLatitude = this.optionalText(dto.districtLatitude ?? dto.district_latitude);
+    }
+    if (
+      dto.districtLongitude !== undefined ||
+      dto.district_longitude !== undefined ||
+      dto.stateLongitude !== undefined ||
+      dto.state_longitude !== undefined
+    ) {
+      district.districtLongitude = this.optionalText(
+        dto.districtLongitude ??
+          dto.district_longitude ??
+          dto.stateLongitude ??
+          dto.state_longitude,
+      );
+    }
     district.updatedBy = this.optionalBigInt(dto.updatedBy, 'updatedBy');
     if (dto.status !== undefined)
       district.status = this.validateStatus(dto.status);
@@ -158,6 +189,12 @@ export class LocationService {
           dto.subDistrictName,
           'subDistrictName',
         ),
+        subDistrictLatitude: this.optionalText(
+          dto.subDistrictLatitude ?? dto.sub_district_latitude,
+        ),
+        subDistrictLongitude: this.optionalText(
+          dto.subDistrictLongitude ?? dto.sub_district_longitude,
+        ),
         createdBy: this.requireBigInt(authenticatedUserId, 'createdBy'),
         status: this.validateStatus(dto.status),
       }),
@@ -194,6 +231,22 @@ export class LocationService {
         dto.subDistrictName,
         'subDistrictName',
       );
+    if (
+      dto.subDistrictLatitude !== undefined ||
+      dto.sub_district_latitude !== undefined
+    ) {
+      subDistrict.subDistrictLatitude = this.optionalText(
+        dto.subDistrictLatitude ?? dto.sub_district_latitude,
+      );
+    }
+    if (
+      dto.subDistrictLongitude !== undefined ||
+      dto.sub_district_longitude !== undefined
+    ) {
+      subDistrict.subDistrictLongitude = this.optionalText(
+        dto.subDistrictLongitude ?? dto.sub_district_longitude,
+      );
+    }
     subDistrict.updatedBy = this.optionalBigInt(dto.updatedBy, 'updatedBy');
     if (dto.status !== undefined)
       subDistrict.status = this.validateStatus(dto.status);
@@ -332,6 +385,12 @@ export class LocationService {
         `${fieldName} is required and must be a non-empty string.`,
       );
     return value.trim();
+  }
+
+  private optionalText(value: unknown): string | null {
+    if (value === undefined || value === null) return null;
+    const str = String(value).trim();
+    return str.length > 0 ? str : null;
   }
 
   private normalizeForComparison(value: string): string {

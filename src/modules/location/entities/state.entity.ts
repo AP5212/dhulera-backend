@@ -30,6 +30,12 @@ export class State {
   @CreateDateColumn({ name: 'created_at', type: 'timestamp' })
   createdAt!: Date;
 
+  @Column({ name: 'state_latitude', type: 'varchar', length: 100, nullable: true })
+  stateLatitude!: string | null;
+
+  @Column({ name: 'state_longitude', type: 'varchar', length: 100, nullable: true })
+  stateLongitude!: string | null;
+
   @Column({ name: 'updated_by', type: 'bigint', nullable: true })
   updatedBy!: string | null;
 

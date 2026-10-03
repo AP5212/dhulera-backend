@@ -41,6 +41,12 @@ export class SubDistrict {
   @CreateDateColumn({ name: 'created_at', type: 'timestamp' })
   createdAt!: Date;
 
+  @Column({ name: 'sub_district_latitude', type: 'varchar', length: 100, nullable: true })
+  subDistrictLatitude!: string | null;
+
+  @Column({ name: 'sub_district_longitude', type: 'varchar', length: 100, nullable: true })
+  subDistrictLongitude!: string | null;
+
   @Column({ name: 'updated_by', type: 'bigint', nullable: true })
   updatedBy!: string | null;
 

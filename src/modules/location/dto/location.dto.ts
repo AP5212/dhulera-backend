@@ -11,6 +11,22 @@ export class CreateStateDto {
   stateName!: string;
 
   @IsOptional()
+  @IsString()
+  stateLatitude?: string;
+
+  @IsOptional()
+  @IsString()
+  stateLongitude?: string;
+
+  @IsOptional()
+  @IsString()
+  state_latitude?: string;
+
+  @IsOptional()
+  @IsString()
+  state_longitude?: string;
+
+  @IsOptional()
   @IsEnum(LocationStatus, {
     message: 'status must be ACTIVE, INACTIVE, or DELETED.',
   })
@@ -29,6 +45,22 @@ export class UpdateStateDto {
   @IsOptional()
   @IsString()
   stateName?: string;
+
+  @IsOptional()
+  @IsString()
+  stateLatitude?: string;
+
+  @IsOptional()
+  @IsString()
+  stateLongitude?: string;
+
+  @IsOptional()
+  @IsString()
+  state_latitude?: string;
+
+  @IsOptional()
+  @IsString()
+  state_longitude?: string;
 
   @IsOptional()
   @IsString()
@@ -51,6 +83,30 @@ export class CreateDistrictDto {
   @IsString({ message: 'districtName must be a string.' })
   @IsNotEmpty({ message: 'districtName is required.' })
   districtName!: string;
+
+  @IsOptional()
+  @IsString()
+  districtLatitude?: string;
+
+  @IsOptional()
+  @IsString()
+  districtLongitude?: string;
+
+  @IsOptional()
+  @IsString()
+  stateLongitude?: string;
+
+  @IsOptional()
+  @IsString()
+  district_latitude?: string;
+
+  @IsOptional()
+  @IsString()
+  district_longitude?: string;
+
+  @IsOptional()
+  @IsString()
+  state_longitude?: string;
 
   @IsOptional()
   @IsEnum(LocationStatus)
@@ -76,6 +132,30 @@ export class UpdateDistrictDto {
 
   @IsOptional()
   @IsString()
+  districtLatitude?: string;
+
+  @IsOptional()
+  @IsString()
+  districtLongitude?: string;
+
+  @IsOptional()
+  @IsString()
+  stateLongitude?: string;
+
+  @IsOptional()
+  @IsString()
+  district_latitude?: string;
+
+  @IsOptional()
+  @IsString()
+  district_longitude?: string;
+
+  @IsOptional()
+  @IsString()
+  state_longitude?: string;
+
+  @IsOptional()
+  @IsString()
   updatedBy?: string;
 
   @IsOptional()
@@ -95,6 +175,22 @@ export class CreateSubDistrictDto {
   @IsString({ message: 'subDistrictName must be a string.' })
   @IsNotEmpty({ message: 'subDistrictName is required.' })
   subDistrictName!: string;
+
+  @IsOptional()
+  @IsString()
+  subDistrictLatitude?: string;
+
+  @IsOptional()
+  @IsString()
+  subDistrictLongitude?: string;
+
+  @IsOptional()
+  @IsString()
+  sub_district_latitude?: string;
+
+  @IsOptional()
+  @IsString()
+  sub_district_longitude?: string;
 
   @IsOptional()
   @IsEnum(LocationStatus)
@@ -117,6 +213,22 @@ export class UpdateSubDistrictDto {
   @IsOptional()
   @IsString()
   subDistrictName?: string;
+
+  @IsOptional()
+  @IsString()
+  subDistrictLatitude?: string;
+
+  @IsOptional()
+  @IsString()
+  subDistrictLongitude?: string;
+
+  @IsOptional()
+  @IsString()
+  sub_district_latitude?: string;
+
+  @IsOptional()
+  @IsString()
+  sub_district_longitude?: string;
 
   @IsOptional()
   @IsString()

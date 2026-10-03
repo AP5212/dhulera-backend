@@ -41,6 +41,12 @@ export class District {
   @CreateDateColumn({ name: 'created_at', type: 'timestamp' })
   createdAt!: Date;
 
+  @Column({ name: 'district_latitude', type: 'varchar', length: 100, nullable: true })
+  districtLatitude!: string | null;
+
+  @Column({ name: 'state_longitude', type: 'varchar', length: 100, nullable: true })
+  districtLongitude!: string | null;
+
   @Column({ name: 'updated_by', type: 'bigint', nullable: true })
   updatedBy!: string | null;
 
