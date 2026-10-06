@@ -16,6 +16,7 @@ import { RolesModule } from './modules/roles/roles.module';
 import { PropertyListingTypeModule } from './modules/property-listing-type/property-listing-type.module';
 import { PropertyTpModule } from './modules/property_tp/property_tp.module';
 import { AdminModule } from './modules/admin/admin.module';
+import { BannersModule } from './modules/banners/banners.module';
 
 @Module({
   imports: [
@@ -38,6 +39,7 @@ import { AdminModule } from './modules/admin/admin.module';
     PropertyListingTypeModule,
     PropertyTpModule,
     AdminModule,
+    BannersModule,
   ],
   controllers: [AppController],
 })
