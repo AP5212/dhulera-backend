@@ -19,7 +19,7 @@ import { MasterCategoryService } from './master-category.service';
 @Controller('master-category')
 @UseFilters(MasterCategoryExceptionFilter)
 export class MasterCategoryController {
-  constructor(private readonly masterCategoryService: MasterCategoryService) {}
+  constructor(private readonly masterCategoryService: MasterCategoryService) { }
 
   @Post()
   async createRoot(
@@ -77,8 +77,33 @@ export class MasterCategoryController {
     return this.successResponse('Master category deleted successfully.', data);
   }
 
+  @Get('type/:categoryType')
+  async findByCategoryType(
+    @Param('categoryType') categoryType: string,
+  ): Promise<ApiListResponse> {
+    const data = await this.masterCategoryService.findByCategoryType(categoryType);
+    return {
+      status: true,
+      message: 'Active master categories retrieved successfully.',
+      data,
+    };
+  }
+
   @Get()
-  async findAll(@Query('parentId') parentId?: string): Promise<ApiListResponse> {
+  async findAll(
+    @Query('parentId') parentId?: string,
+    @Query('categoryType') categoryType?: string,
+    @Query('category_type') snakeCategoryType?: string,
+  ): Promise<ApiListResponse> {
+    const type = categoryType || snakeCategoryType;
+    if (type) {
+      const data = await this.masterCategoryService.findByCategoryType(type);
+      return {
+        status: true,
+        message: 'Active master categories retrieved successfully.',
+        data,
+      };
+    }
     const data = await this.masterCategoryService.findAll(parentId);
     return { status: true, message: 'Master categories retrieved successfully.', data };
   }

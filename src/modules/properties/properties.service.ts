@@ -15,13 +15,17 @@ import { PropertiesRepository } from './properties.repository';
 
 export interface PropertyUploadedFiles {
   propertyImage?: Express.Multer.File[];
+  propertyImages?: Express.Multer.File[];
   propertyBroucher?: Express.Multer.File[];
+  propertyVideo?: Express.Multer.File[];
+  propertyGifVideo?: Express.Multer.File[];
 }
 
 @Injectable()
 export class PropertiesService {
   private readonly imagesDir = path.join(process.cwd(), 'assets', 'images');
   private readonly pdfDir = path.join(process.cwd(), 'assets', 'pdf');
+  private readonly videosDir = path.join(process.cwd(), 'assets', 'videos');
 
   private readonly imageBaseUrl: string;
 
@@ -31,7 +35,8 @@ export class PropertiesService {
   ) {
     this.ensureDirectoryExists(this.imagesDir);
     this.ensureDirectoryExists(this.pdfDir);
-    this.imageBaseUrl = this.configService.get<string>('app.imageBaseUrl') ?? 'http://localhost:3000';
+    this.ensureDirectoryExists(this.videosDir);
+    this.imageBaseUrl = this.configService.get<string>('app.imageBaseUrl') ?? 'http://localhost:8000';
   }
 
   // ─── CREATE ────────────────────────────────────────────────
@@ -41,25 +46,38 @@ export class PropertiesService {
     files?: PropertyUploadedFiles,
     createdBy?: string,
   ): Promise<Property> {
-    const propertyName = this.requireText(dto.propertyName ?? dto.properyName ?? dto.property_name, 'propertyName');
-    const propertyMinPrice = this.parseOptionalNumber(dto.propertyMinPrice ?? dto.properytMinPrice ?? dto.property_min_price, 'propertyMinPrice');
-    const propertyMaxPrice = this.parseOptionalNumber(dto.propertyMaxPrice ?? dto.property_max_price, 'propertyMaxPrice');
-    const propertyAddress = this.optionalText(dto.propertyAddress ?? dto.property_address);
-    const propertyLattitude = this.optionalText(dto.propertyLattitude ?? dto.propertyLatitude ?? dto.property_lattitude ?? dto.property_latitude);
-    const propertyLongitude = this.optionalText(dto.propertyLongitude ?? dto.property_longitude);
-    const propertyStatus = this.optionalText(dto.propertyStatus ?? dto.property_status) ?? 'AVAILABLE';
-    const propertyDescription = this.optionalText(dto.propertyDescription ?? dto.property_description);
-    const propertyArea = this.optionalText(dto.propertyArea ?? dto.property_area);
-    const propertyTP = this.optionalText(dto.propertyTP ?? dto.property_tp);
-    const propertySIR = this.optionalText(dto.propertySIR ?? dto.property_sir);
-    const propertyListingType = this.optionalText(dto.propertyListingType ?? dto.property_listing_type);
+    const propertyName = this.requireText(dto.propertyName, 'propertyName');
+    const propertyMinPrice = this.parseOptionalNumber(dto.propertyMinPrice, 'propertyMinPrice');
+    const propertyMaxPrice = this.parseOptionalNumber(dto.propertyMaxPrice, 'propertyMaxPrice');
+    const propertyAddress = this.optionalText(dto.propertyAddress);
+    const propertyLattitude = this.optionalText(dto.propertyLattitude ?? dto.propertyLatitude);
+    const propertyLongitude = this.optionalText(dto.propertyLongitude);
+    const propertyStatus = this.optionalText(dto.propertyStatus) ?? 'AVAILABLE';
+    const propertyDescription = this.optionalText(dto.propertyDescription);
+    const propertyArea = this.optionalText(dto.propertyArea);
+    const tpId = this.optionalText(dto.tpId);
+    const sirId = this.optionalText(dto.sirId);
+    const listingTypeId = this.optionalText(dto.listingTypeId);
+    const propertyCreatedByType = this.optionalText(dto.propertyCreatedByType);
+    const oldSurvey = this.optionalText(dto.oldSurvey);
+    const newSurvey = this.optionalText(dto.newSurvey);
+    const zone = this.optionalText(dto.zone);
+    const roadWidth = this.optionalText(dto.roadWidth);
 
-    // Handle brochure upload (single file)
+    // Handle brochure upload (single PDF file)
     const propertyBroucherUrl = await this.resolveFileUrl(
       files?.propertyBroucher?.[0],
-      dto.propertyBroucher ?? dto.propertyBrochure ?? dto.property_broucher,
+      dto.propertyBroucher ?? dto.propertyBrochure,
       this.pdfDir,
       'pdf',
+    );
+
+    // Handle video upload (single video file)
+    const propertyVideoUrl = await this.resolveFileUrl(
+      files?.propertyVideo?.[0] ?? files?.propertyGifVideo?.[0],
+      dto.propertyGifVideo ?? dto.propertyVideo,
+      this.videosDir,
+      'videos',
     );
 
     // Save property first — we need its id as FK for image rows
@@ -73,17 +91,26 @@ export class PropertiesService {
       propertyStatus,
       propertyDescription,
       propertyArea,
-      propertyTP,
-      propertySIR,
-      propertyListingType,
+      tpId,
+      sirId,
+      listingTypeId,
+      propertyCreatedByType,
+      oldSurvey,
+      newSurvey,
+      zone,
+      roadWidth,
       propertyBroucher: propertyBroucherUrl,
+      propertyGifVideo: propertyVideoUrl,
       createdBy: createdBy ?? null,
     });
 
     const savedProperty = await this.propertiesRepository.save(entity);
 
     // Save each uploaded image as a separate PropertyImage row
-    const imageFiles = files?.propertyImage ?? [];
+    const imageFiles = [
+      ...(files?.propertyImage ?? []),
+      ...(files?.propertyImages ?? []),
+    ];
     if (imageFiles.length > 0) {
       const imageRows = imageFiles.map((file) => ({
         propertyId: savedProperty.id,
@@ -92,6 +119,26 @@ export class PropertiesService {
       }));
       const savedImages = await this.propertiesRepository.saveImagesBulk(imageRows);
       savedProperty.images = savedImages;
+    } else if (dto.propertyImages || dto.propertyImage) {
+      const raw = dto.propertyImages ?? dto.propertyImage;
+      const urls: string[] = Array.isArray(raw)
+        ? raw
+        : typeof raw === 'string' && raw.trim().startsWith('[')
+          ? (() => { try { return JSON.parse(raw); } catch { return [raw]; } })()
+          : typeof raw === 'string'
+            ? raw.split(',').map((s) => s.trim()).filter(Boolean)
+            : [];
+      if (urls.length > 0) {
+        const imageRows = urls.map((url) => ({
+          propertyId: savedProperty.id,
+          imageUrl: url,
+          createdBy: createdBy ?? null,
+        }));
+        const savedImages = await this.propertiesRepository.saveImagesBulk(imageRows);
+        savedProperty.images = savedImages;
+      } else {
+        savedProperty.images = [];
+      }
     } else {
       savedProperty.images = [];
     }
@@ -202,11 +249,11 @@ export class PropertiesService {
   }
 
   private attachBaseUrl(property: Property): Property {
-    if (property.propertyImage && property.propertyImage.startsWith('/')) {
-      property.propertyImage = `${this.imageBaseUrl}${property.propertyImage}`;
-    }
     if (property.propertyBroucher && property.propertyBroucher.startsWith('/')) {
       property.propertyBroucher = `${this.imageBaseUrl}${property.propertyBroucher}`;
+    }
+    if (property.propertyGifVideo && property.propertyGifVideo.startsWith('/')) {
+      property.propertyGifVideo = `${this.imageBaseUrl}${property.propertyGifVideo}`;
     }
     if (Array.isArray(property.images)) {
       property.images = property.images.map((img) => {
@@ -229,58 +276,61 @@ export class PropertiesService {
   ): Promise<Property> {
     const property = await this.findExisting(id);
 
-    const propertyName = dto.propertyName ?? dto.properyName ?? dto.property_name;
-    if (propertyName !== undefined) {
-      property.propertyName = this.requireText(propertyName, 'propertyName');
+    if (dto.propertyName !== undefined) {
+      property.propertyName = this.requireText(dto.propertyName, 'propertyName');
     }
-    const minPrice = dto.propertyMinPrice ?? dto.properytMinPrice ?? dto.property_min_price;
-    if (minPrice !== undefined) {
-      property.propertyMinPrice = this.parseOptionalNumber(minPrice, 'propertyMinPrice');
+    if (dto.propertyMinPrice !== undefined) {
+      property.propertyMinPrice = this.parseOptionalNumber(dto.propertyMinPrice, 'propertyMinPrice');
     }
-    const maxPrice = dto.propertyMaxPrice ?? dto.property_max_price;
-    if (maxPrice !== undefined) {
-      property.propertyMaxPrice = this.parseOptionalNumber(maxPrice, 'propertyMaxPrice');
+    if (dto.propertyMaxPrice !== undefined) {
+      property.propertyMaxPrice = this.parseOptionalNumber(dto.propertyMaxPrice, 'propertyMaxPrice');
     }
-    const address = dto.propertyAddress ?? dto.property_address;
-    if (address !== undefined) {
-      property.propertyAddress = this.optionalText(address);
+    if (dto.propertyAddress !== undefined) {
+      property.propertyAddress = this.optionalText(dto.propertyAddress);
     }
-    const latitude = dto.propertyLattitude ?? dto.propertyLatitude ?? dto.property_lattitude ?? dto.property_latitude;
-    if (latitude !== undefined) {
-      property.propertyLattitude = this.optionalText(latitude);
+    if (dto.propertyLattitude !== undefined || dto.propertyLatitude !== undefined) {
+      property.propertyLattitude = this.optionalText(dto.propertyLattitude ?? dto.propertyLatitude);
     }
-    const longitude = dto.propertyLongitude ?? dto.property_longitude;
-    if (longitude !== undefined) {
-      property.propertyLongitude = this.optionalText(longitude);
+    if (dto.propertyLongitude !== undefined) {
+      property.propertyLongitude = this.optionalText(dto.propertyLongitude);
     }
-    const status = dto.propertyStatus ?? dto.property_status;
-    if (status !== undefined) {
-      property.propertyStatus = this.optionalText(status) ?? property.propertyStatus;
+    if (dto.propertyStatus !== undefined) {
+      property.propertyStatus = this.optionalText(dto.propertyStatus) ?? property.propertyStatus;
     }
-    const description = dto.propertyDescription ?? dto.property_description;
-    if (description !== undefined) {
-      property.propertyDescription = this.optionalText(description);
+    if (dto.propertyDescription !== undefined) {
+      property.propertyDescription = this.optionalText(dto.propertyDescription);
     }
-    const area = dto.propertyArea ?? dto.property_area;
-    if (area !== undefined) {
-      property.propertyArea = this.optionalText(area);
+    if (dto.propertyArea !== undefined) {
+      property.propertyArea = this.optionalText(dto.propertyArea);
     }
-    const tp = dto.propertyTP ?? dto.property_tp;
-    if (tp !== undefined) {
-      property.propertyTP = this.optionalText(tp);
+    if (dto.tpId !== undefined) {
+      property.tpId = this.optionalText(dto.tpId);
     }
-    const sir = dto.propertySIR ?? dto.property_sir;
-    if (sir !== undefined) {
-      property.propertySIR = this.optionalText(sir);
+    if (dto.sirId !== undefined) {
+      property.sirId = this.optionalText(dto.sirId);
     }
-    const listingType = dto.propertyListingType ?? dto.property_listing_type;
-    if (listingType !== undefined) {
-      property.propertyListingType = this.optionalText(listingType);
+    if (dto.listingTypeId !== undefined) {
+      property.listingTypeId = this.optionalText(dto.listingTypeId);
+    }
+    if (dto.propertyCreatedByType !== undefined) {
+      property.propertyCreatedByType = this.optionalText(dto.propertyCreatedByType);
+    }
+    if (dto.oldSurvey !== undefined) {
+      property.oldSurvey = this.optionalText(dto.oldSurvey);
+    }
+    if (dto.newSurvey !== undefined) {
+      property.newSurvey = this.optionalText(dto.newSurvey);
+    }
+    if (dto.zone !== undefined) {
+      property.zone = this.optionalText(dto.zone);
+    }
+    if (dto.roadWidth !== undefined) {
+      property.roadWidth = this.optionalText(dto.roadWidth);
     }
 
     const brochureUrl = await this.resolveFileUrl(
       files?.propertyBroucher?.[0],
-      dto.propertyBroucher ?? dto.propertyBrochure ?? dto.property_broucher,
+      dto.propertyBroucher ?? dto.propertyBrochure,
       this.pdfDir,
       'pdf',
     );
@@ -288,12 +338,26 @@ export class PropertiesService {
       property.propertyBroucher = brochureUrl;
     }
 
+    // Handle video upload
+    const videoUrl = await this.resolveFileUrl(
+      files?.propertyVideo?.[0] ?? files?.propertyGifVideo?.[0],
+      dto.propertyGifVideo ?? dto.propertyVideo,
+      this.videosDir,
+      'videos',
+    );
+    if (videoUrl !== null) {
+      property.propertyGifVideo = videoUrl;
+    }
+
     // updatedBy from JWT token, not request body
     property.updatedBy = updatedBy ?? null;
 
     const savedProperty = await this.propertiesRepository.save(property);
 
-    const imageFiles = files?.propertyImage ?? [];
+    const imageFiles = [
+      ...(files?.propertyImage ?? []),
+      ...(files?.propertyImages ?? []),
+    ];
     if (imageFiles.length > 0) {
       const imageRows = imageFiles.map((file) => ({
         propertyId: savedProperty.id,
@@ -308,11 +372,9 @@ export class PropertiesService {
 
   // ─── DELETE (soft) ─────────────────────────────────────────
 
-  async remove(id: string, dto?: DeletePropertyDto): Promise<Property> {
+  async remove(id: string, dto?: DeletePropertyDto, updatedBy?: string): Promise<Property> {
     const property = await this.findExisting(id);
-    if (dto?.updatedBy) {
-      property.updatedBy = dto.updatedBy;
-    }
+    property.updatedBy = updatedBy ?? dto?.updatedBy ?? null;
     property.propertyStatus = 'DELETED';
     return this.propertiesRepository.save(property);
   }

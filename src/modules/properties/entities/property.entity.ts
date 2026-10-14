@@ -52,17 +52,35 @@ export class Property {
   @Column({ name: 'property_area', type: 'varchar', length: 100, nullable: true })
   propertyArea!: string | null;
 
-  @Column({ name: 'property_image', type: 'text', nullable: true })
-  propertyImage!: string | null;
+  // @Column({ name: 'property_image', type: 'text', nullable: true })
+  // propertyImage!: string | null;
 
-  @Column({ name: 'property_tp', type: 'varchar', length: 100, nullable: true })
-  propertyTP!: string | null;
+  @Column({ name: 'tp_id', type: 'bigint', nullable: true })
+  tpId!: string | null;
 
-  @Column({ name: 'property_sir', type: 'varchar', length: 100, nullable: true })
-  propertySIR!: string | null;
+  @Column({ name: 'sir_id', type: 'bigint', nullable: true })
+  sirId!: string | null;
 
-  @Column({ name: 'property_listing_type', type: 'varchar', length: 100, nullable: true })
-  propertyListingType!: string | null;
+  @Column({ name: 'listing_type_id', type: 'bigint', nullable: true })
+  listingTypeId!: string | null;
+
+  @Column({ name: "property_gif_video", type: "text", nullable: true })
+  propertyGifVideo!: string | null;
+
+  @Column({ name: 'property_created_by_type', type: 'varchar', length: 100, nullable: true })
+  propertyCreatedByType!: string | null;
+
+  @Column({ name: "old_survey", type: "text", nullable: true })
+  oldSurvey!: string | null;
+
+  @Column({ name: "new_survey", type: "text", nullable: true })
+  newSurvey!: string | null;
+
+  @Column({ name: "zone", type: "text", nullable: true })
+  zone!: string | null;
+
+  @Column({ name: "road_width", type: "text", nullable: true })
+  roadWidth!: string | null;
 
   @Column({ name: 'property_broucher', type: 'text', nullable: true })
   propertyBroucher!: string | null;

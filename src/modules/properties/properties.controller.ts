@@ -8,9 +8,11 @@ import {
   Req,
   UploadedFiles,
   UseFilters,
+  UseGuards,
   UseInterceptors,
 } from '@nestjs/common';
 import { FileFieldsInterceptor } from '@nestjs/platform-express';
+import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import type { AuthenticatedRequest } from '../users/middleware/jwt-auth.middleware';
 import { CreatePropertyDto } from './dto/create-property.dto';
 import { DeletePropertyDto } from './dto/delete-property.dto';
@@ -32,12 +34,21 @@ export class PropertiesController {
    * createdBy is automatically extracted from the JWT token.
    */
   @Post('create')
+  @UseGuards(JwtAuthGuard)
   @UseInterceptors(
     FileFieldsInterceptor([
-      { name: 'property_image', maxCount: 10 },
-      { name: 'propertyImage', maxCount: 10 },
+      { name: 'property_image', maxCount: 20 },
+      { name: 'propertyImage', maxCount: 20 },
+      { name: 'property_images', maxCount: 20 },
+      { name: 'propertyImages', maxCount: 20 },
       { name: 'property_broucher', maxCount: 1 },
       { name: 'propertyBroucher', maxCount: 1 },
+      { name: 'property_brochure', maxCount: 1 },
+      { name: 'propertyBrochure', maxCount: 1 },
+      { name: 'property_video', maxCount: 1 },
+      { name: 'propertyVideo', maxCount: 1 },
+      { name: 'property_gif_video', maxCount: 1 },
+      { name: 'propertyGifVideo', maxCount: 1 },
     ]),
   )
   async create(
@@ -45,15 +56,25 @@ export class PropertiesController {
     @UploadedFiles() files: any,
     @Req() request: AuthenticatedRequest,
   ) {
-    const createdBy = request?.user?.user_id;
+    const createdBy = request?.user?.user_id ?? request?.user?.id ?? request?.user?.sub;
     const normalised: PropertyUploadedFiles = {
       propertyImage: [
         ...(files?.property_image ?? []),
         ...(files?.propertyImage ?? []),
+        ...(files?.property_images ?? []),
+        ...(files?.propertyImages ?? []),
       ],
       propertyBroucher: [
         ...(files?.property_broucher ?? []),
         ...(files?.propertyBroucher ?? []),
+        ...(files?.property_brochure ?? []),
+        ...(files?.propertyBrochure ?? []),
+      ],
+      propertyVideo: [
+        ...(files?.property_video ?? []),
+        ...(files?.propertyVideo ?? []),
+        ...(files?.property_gif_video ?? []),
+        ...(files?.propertyGifVideo ?? []),
       ],
     };
     const property = await this.propertiesService.create(body, normalised, createdBy);
@@ -66,12 +87,21 @@ export class PropertiesController {
    * updatedBy is automatically extracted from the JWT token.
    */
   @Post('update/:id')
+  @UseGuards(JwtAuthGuard)
   @UseInterceptors(
     FileFieldsInterceptor([
-      { name: 'property_image', maxCount: 10 },
-      { name: 'propertyImage', maxCount: 10 },
+      { name: 'property_image', maxCount: 20 },
+      { name: 'propertyImage', maxCount: 20 },
+      { name: 'property_images', maxCount: 20 },
+      { name: 'propertyImages', maxCount: 20 },
       { name: 'property_broucher', maxCount: 1 },
       { name: 'propertyBroucher', maxCount: 1 },
+      { name: 'property_brochure', maxCount: 1 },
+      { name: 'propertyBrochure', maxCount: 1 },
+      { name: 'property_video', maxCount: 1 },
+      { name: 'propertyVideo', maxCount: 1 },
+      { name: 'property_gif_video', maxCount: 1 },
+      { name: 'propertyGifVideo', maxCount: 1 },
     ]),
   )
   async update(
@@ -80,15 +110,25 @@ export class PropertiesController {
     @UploadedFiles() files: any,
     @Req() request: AuthenticatedRequest,
   ) {
-    const updatedBy = request?.user?.user_id;
+    const updatedBy = request?.user?.user_id ?? request?.user?.id ?? request?.user?.sub;
     const normalised: PropertyUploadedFiles = {
       propertyImage: [
         ...(files?.property_image ?? []),
         ...(files?.propertyImage ?? []),
+        ...(files?.property_images ?? []),
+        ...(files?.propertyImages ?? []),
       ],
       propertyBroucher: [
         ...(files?.property_broucher ?? []),
         ...(files?.propertyBroucher ?? []),
+        ...(files?.property_brochure ?? []),
+        ...(files?.propertyBrochure ?? []),
+      ],
+      propertyVideo: [
+        ...(files?.property_video ?? []),
+        ...(files?.propertyVideo ?? []),
+        ...(files?.property_gif_video ?? []),
+        ...(files?.propertyGifVideo ?? []),
       ],
     };
     const property = await this.propertiesService.update(id, dto, normalised, updatedBy);
@@ -96,8 +136,14 @@ export class PropertiesController {
   }
 
   @Post('delete/:id')
-  async remove(@Param('id') id: string, @Body() dto: DeletePropertyDto) {
-    const property = await this.propertiesService.remove(id, dto);
+  @UseGuards(JwtAuthGuard)
+  async remove(
+    @Param('id') id: string,
+    @Body() dto: DeletePropertyDto,
+    @Req() request: AuthenticatedRequest,
+  ) {
+    const updatedBy = request?.user?.user_id ?? request?.user?.id ?? request?.user?.sub;
+    const property = await this.propertiesService.remove(id, dto, updatedBy);
     return this.response('Property deleted successfully.', property);
   }
 

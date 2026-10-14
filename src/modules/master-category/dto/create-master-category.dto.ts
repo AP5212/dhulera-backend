@@ -3,7 +3,8 @@ import { MasterCategoryStatus, MasterCategoryType } from '../../../common/enums/
 
 export class CreateMasterCategoryDto {
   @IsEnum(MasterCategoryType, {
-    message: 'categoryType must be PROPERTY_TYPE, PROPERTY_ZONE, AMENITY, or LOCATION.',
+    message:
+      'categoryType must be PROPERTY_TYPE, TP, SIR, PROPERTY_ZONE, AMENITY, LOCATION, or PROPERTY_LISTING_TYPE.',
   })
   @IsNotEmpty({ message: 'categoryType is required.' })
   categoryType!: MasterCategoryType;

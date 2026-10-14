@@ -12,7 +12,7 @@ export class MasterCategoryService {
   constructor(
     @InjectRepository(MasterCategory)
     private readonly masterCategoryRepository: Repository<MasterCategory>,
-  ) {}
+  ) { }
 
   async create(
     createMasterCategoryDto: CreateMasterCategoryDto,
@@ -96,6 +96,20 @@ export class MasterCategoryService {
     });
   }
 
+  async findByCategoryType(categoryType: string): Promise<MasterCategory[]> {
+    const normalizedType = this.requireText(categoryType, 'categoryType').toUpperCase();
+    const validatedType = this.validateCategoryType(normalizedType);
+    return this.masterCategoryRepository.find({
+      where: {
+        categoryType: validatedType,
+        status: MasterCategoryStatus.ACTIVE,
+      },
+      order: {
+        categoryName: 'ASC',
+      },
+    });
+  }
+
   private async findExisting(id: string): Promise<MasterCategory> {
     const categoryId = this.requireBigInt(id, 'id');
     const category = await this.masterCategoryRepository.findOneBy({ id: categoryId });
@@ -153,7 +167,9 @@ export class MasterCategoryService {
 
   private validateCategoryType(value: unknown): MasterCategoryType {
     if (!Object.values(MasterCategoryType).includes(value as MasterCategoryType)) {
-      throw new BadRequestException('categoryType must be PROPERTY_TYPE, PROPERTY_ZONE, AMENITY, or LOCATION.');
+      throw new BadRequestException(
+        `categoryType must be one of: ${Object.values(MasterCategoryType).join(', ')}.`,
+      );
     }
     return value as MasterCategoryType;
   }

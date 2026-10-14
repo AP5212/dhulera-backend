@@ -28,71 +28,37 @@ export class AuthService {
     private readonly userRepository: Repository<User>,
     private readonly jwtService: JwtService,
     private readonly otpService: OtpService,
-  ) {}
+  ) { }
 
-  /**
-   * Direct Registration with Email & Password:
-   * Hashes password, persists user, generates JWT token immediately.
-   */
   async create(dto: CreateUserDto): Promise<{ message: string; accessToken: string; user: Partial<User> }> {
-    const email = dto.email.toLowerCase().trim();
-    const mobileNumber = dto.mobileNumber && dto.mobileNumber.trim() !== ''
-      ? dto.mobileNumber.trim()
-      : null;
-    const mobileCountryCode = dto.mobileCountryCode && dto.mobileCountryCode.trim() !== ''
-      ? dto.mobileCountryCode.trim()
-      : null;
-
-    const whereConditions: Array<{ email?: string; mobileNumber?: string }> = [{ email }];
-    if (mobileNumber) {
-      whereConditions.push({ mobileNumber });
-    }
-
-    const existingUser = await this.userRepository.findOne({
-      where: whereConditions,
-    });
-
-    if (existingUser && !existingUser.isDeleted) {
-      throw new ConflictException('User with this email or mobile number already exists.');
-    }
-
-    let hashedPassword: string | null = null;
-    if (dto.password) {
-      hashedPassword = await bcrypt.hash(dto.password, 10);
-    }
-
-    let user: User;
-    if (existingUser && existingUser.isDeleted) {
-      existingUser.name = dto.name.trim();
-      existingUser.email = email;
-      existingUser.mobileCountryCode = mobileCountryCode;
-      existingUser.mobileNumber = mobileNumber;
-      if (hashedPassword) existingUser.password = hashedPassword;
-      existingUser.status = UserStatus.ACTIVE;
-      existingUser.isDeleted = false;
-      user = await this.userRepository.save(existingUser);
-    } else {
-      user = this.userRepository.create({
-        name: dto.name.trim(),
-        email,
-        mobileCountryCode,
-        mobileNumber,
-        password: hashedPassword,
-        isPropertyUser: dto.isPropertyUser ?? false,
-        roleId: dto.roleId || null,
-        status: UserStatus.ACTIVE,
-        isDeleted: false,
+    try {
+      dto.email = dto.email.trim().toLowerCase();
+      dto.mobileNumber = dto.mobileNumber?.trim() || null;
+      dto.mobileCountryCode = dto.mobileCountryCode?.trim() || "+91";
+      const existingUser = await this.userRepository.findOne({
+        where: [{ email: dto.email, isDeleted: false }, ...(dto.mobileNumber ? [{ mobileNumber: dto.mobileNumber, isDeleted: false }] : [])]
       });
-      user = await this.userRepository.save(user);
+      if (existingUser) {
+        throw new ConflictException('User with this email or mobile number already exists.');
+      }
+      if (dto.password) {
+        dto.password = await bcrypt.hash(dto.password, 10);
+      }
+      const user = this.userRepository.create({
+        ...dto,
+        status: UserStatus.ACTIVE,
+        isDeleted: false
+      });
+      await this.userRepository.save(user);
+      const accessToken = await this.generateToken(user);
+      return {
+        message: 'User registered successfully.',
+        accessToken,
+        user: this.sanitizeUser(user),
+      };
+    } catch (error) {
+      throw error;
     }
-
-    const accessToken = await this.generateToken(user);
-
-    return {
-      message: 'User registered successfully.',
-      accessToken,
-      user: this.sanitizeUser(user),
-    };
   }
 
   /**
